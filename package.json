@@ -18,5 +18,8 @@
     "dependencies": {
         "@inertiajs/vue3": "^3.7.1",
         "vue": "^3.5.43"
+    },
+    "allowScripts": {
+        "esbuild@0.28.2": true
     }
 }
