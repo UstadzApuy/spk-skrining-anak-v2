@@ -87,4 +87,21 @@ class LoginTest extends TestCase
 
         $response->assertRedirect(route('login'));
     }
+
+    public function test_authenticated_user_can_logout(): void
+    {
+        $user = User::create([
+            'name' => 'Administrator Test',
+            'email' => 'admin@test.local',
+            'password' => 'password',
+            'role_id' => Role::where('name', 'administrator')->value('id'),
+        ]);
+
+        $this->actingAs($user);
+
+        $response = $this->post(route('logout'));
+
+        $response->assertRedirect('/');
+        $this->assertGuest();
+    }
 }
