@@ -44,6 +44,16 @@ class User extends Authenticatable
     }
 
     /**
+     * Determine whether the user has one of the given roles.
+     */
+    public function hasRole(string ...$roles): bool
+    {
+        $role = $this->role?->name;
+
+        return $role !== null && in_array($role, $roles, true);
+    }
+
+    /**
      * Get the attributes that should be cast.
      *
      * @return array<string, string>
