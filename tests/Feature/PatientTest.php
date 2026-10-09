@@ -567,4 +567,74 @@ class PatientTest extends TestCase
         ]);
     }
 
+    public function test_non_nurse_cannot_edit_or_update_patient(): void
+    {
+        $doctorRole = Role::create([
+            'name' => 'dokter',
+        ]);
+
+        $parentRole = Role::create([
+            'name' => 'orang_tua',
+        ]);
+
+        $doctor = User::create([
+            'name' => 'Dokter Test',
+            'email' => 'dokter@test.local',
+            'password' => 'password',
+            'role_id' => $doctorRole->id,
+        ]);
+
+        $parent = User::create([
+            'name' => 'Orang Tua Test',
+            'email' => 'orangtua@test.local',
+            'password' => 'password',
+            'role_id' => $parentRole->id,
+        ]);
+
+        $parentGuardian = ParentGuardian::create([
+            'user_id' => $parent->id,
+        ]);
+
+        $patient = Patient::create([
+            'parent_guardian_id' => $parentGuardian->id,
+            'medical_record_number' => 'RM-AUTH-001',
+            'name' => 'Anak Test',
+            'birth_date' => '2024-01-01',
+            'gender' => 'L',
+            'guardian_relationship' => 'Ibu',
+            'is_premature' => false,
+            'gestational_age_weeks' => null,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($doctor)
+            ->get(route('patients.edit', $patient))
+            ->assertForbidden();
+
+        $this->put(route('patients.update', $patient), [
+            'parent_guardian_id' => $parentGuardian->id,
+            'medical_record_number' => 'RM-AUTH-001',
+            'name' => 'Nama yang Diubah',
+            'birth_date' => '2024-01-01',
+            'gender' => 'L',
+            'guardian_relationship' => 'Ibu',
+            'is_premature' => false,
+            'gestational_age_weeks' => null,
+        ])->assertForbidden();
+
+        $this->assertDatabaseHas('patients', [
+            'id' => $patient->id,
+            'name' => 'Anak Test',
+        ]);
+    }
+
+    public function test_guest_cannot_edit_or_update_patient(): void
+    {
+        $this->get(route('patients.edit', 999))
+            ->assertRedirect(route('login'));
+
+        $this->put(route('patients.update', 999), [])
+            ->assertRedirect(route('login'));
+    }
+
 }
