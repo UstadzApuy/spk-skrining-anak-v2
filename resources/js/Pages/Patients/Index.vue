@@ -9,7 +9,8 @@ defineProps({
     },
 });
 
-const user = usePage().props.auth.user;
+const page = usePage();
+const user = page.props.auth.user;
 </script>
 
 <template>
@@ -29,6 +30,14 @@ const user = usePage().props.auth.user;
         </template>
 
         <div class="space-y-6">
+            <div
+                v-if="page.props.flash?.success"
+                role="status"
+                aria-live="polite"
+                class="rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800"
+            >
+                {{ page.props.flash.success }}
+            </div>
             <div class="flex items-center justify-between">
                 <div>
                     <h3 class="text-lg font-semibold text-gray-900">

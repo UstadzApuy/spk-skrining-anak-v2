@@ -185,16 +185,28 @@ class PatientTest extends TestCase
         $response->assertRedirect(route('patients.index'));
         $response->assertSessionHas('success', 'Data pasien berhasil ditambahkan.');
 
-        $this->assertDatabaseHas('patients', [
-            'parent_guardian_id' => $parentGuardian->id,
-            'medical_record_number' => 'RM-NEW-001',
-            'name' => 'Anak Baru',
-            'gender' => 'P',
-            'is_premature' => false,
-            'gestational_age_weeks' => null,
-            'is_active' => true,
-        ]);
-    }
+            $this->assertDatabaseHas('patients', [
+                'parent_guardian_id' => $parentGuardian->id,
+                'medical_record_number' => 'RM-NEW-001',
+                'name' => 'Anak Baru',
+                'gender' => 'P',
+                'is_premature' => false,
+                'gestational_age_weeks' => null,
+                'is_active' => true,
+            ]);
+
+            $indexResponse = $this->actingAs($nurse)
+                ->get(route('patients.index'));
+
+            $indexResponse->assertInertia(
+                fn ($page) => $page
+                    ->component('Patients/Index')
+                    ->where(
+                        'flash.success',
+                        'Data pasien berhasil ditambahkan.'
+                    )
+            );
+        }
 
     public function test_premature_patient_requires_gestational_age(): void
     {
