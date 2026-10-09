@@ -1,5 +1,5 @@
 <script setup>
-import { Head, usePage } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
 
 defineProps({
@@ -40,12 +40,12 @@ const user = usePage().props.auth.user;
                     </p>
                 </div>
 
-                <button
-                    type="button"
-                    class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
-                >
-                    Tambah Pasien
-                </button>
+            <Link
+                href="/patients/create"
+                class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+            >
+                Tambah Pasien
+            </Link>
             </div>
 
             <div class="overflow-hidden rounded-xl bg-white shadow-sm">
