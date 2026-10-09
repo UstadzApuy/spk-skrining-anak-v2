@@ -361,4 +361,210 @@ class PatientTest extends TestCase
         ]);
     }
 
+    public function test_perawat_can_open_patient_edit_form(): void
+    {
+        $nurseRole = Role::create([
+            'name' => 'perawat',
+        ]);
+
+        $parentRole = Role::create([
+            'name' => 'orang_tua',
+        ]);
+
+        $nurse = User::create([
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
+            'password' => 'password',
+            'role_id' => $nurseRole->id,
+        ]);
+
+        $parent = User::create([
+            'name' => 'Orang Tua Test',
+            'email' => 'orangtua@test.local',
+            'password' => 'password',
+            'role_id' => $parentRole->id,
+        ]);
+
+        $parentGuardian = ParentGuardian::create([
+            'user_id' => $parent->id,
+        ]);
+
+        $patient = Patient::create([
+            'parent_guardian_id' => $parentGuardian->id,
+            'medical_record_number' => 'RM-EDIT-001',
+            'name' => 'Anak Sebelum Edit',
+            'birth_date' => '2024-05-10',
+            'gender' => 'P',
+            'guardian_relationship' => 'Ibu',
+            'is_premature' => false,
+            'gestational_age_weeks' => null,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($nurse)
+            ->get(route('patients.edit', $patient));
+
+        $response->assertSuccessful();
+
+        $response->assertInertia(
+            fn ($page) => $page
+                ->component('Patients/Edit')
+                ->where('patient.id', $patient->id)
+                ->where('patient.medical_record_number', 'RM-EDIT-001')
+                ->where('patient.name', 'Anak Sebelum Edit')
+                ->where('patient.birth_date', '2024-05-10')
+                ->where('patient.gender', 'P')
+                ->where('patient.is_premature', false)
+                ->has('parentGuardians', 1)
+                ->where('parentGuardians.0.id', $parentGuardian->id)
+        );
+    }
+
+    public function test_perawat_can_update_patient(): void
+    {
+        $nurseRole = Role::create([
+            'name' => 'perawat',
+        ]);
+
+        $parentRole = Role::create([
+            'name' => 'orang_tua',
+        ]);
+
+        $nurse = User::create([
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
+            'password' => 'password',
+            'role_id' => $nurseRole->id,
+        ]);
+
+        $parent = User::create([
+            'name' => 'Orang Tua Test',
+            'email' => 'orangtua@test.local',
+            'password' => 'password',
+            'role_id' => $parentRole->id,
+        ]);
+
+        $parentGuardian = ParentGuardian::create([
+            'user_id' => $parent->id,
+        ]);
+
+        $patient = Patient::create([
+            'parent_guardian_id' => $parentGuardian->id,
+            'medical_record_number' => 'RM-EDIT-001',
+            'name' => 'Anak Sebelum Edit',
+            'birth_date' => '2024-05-10',
+            'gender' => 'P',
+            'guardian_relationship' => 'Ibu',
+            'is_premature' => false,
+            'gestational_age_weeks' => null,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($nurse)
+            ->put(route('patients.update', $patient), [
+                'parent_guardian_id' => $parentGuardian->id,
+                'medical_record_number' => 'RM-EDIT-001',
+                'name' => 'Anak Setelah Edit',
+                'birth_date' => '2024-06-15',
+                'gender' => 'L',
+                'guardian_relationship' => 'Ayah',
+                'is_premature' => true,
+                'gestational_age_weeks' => 32,
+            ]);
+
+        $response->assertRedirect(route('patients.index'));
+        $response->assertSessionHas(
+            'success',
+            'Data pasien berhasil diperbarui.'
+        );
+
+        $this->assertDatabaseHas('patients', [
+            'id' => $patient->id,
+            'parent_guardian_id' => $parentGuardian->id,
+            'medical_record_number' => 'RM-EDIT-001',
+            'name' => 'Anak Setelah Edit',
+            'birth_date' => '2024-06-15',
+            'gender' => 'L',
+            'guardian_relationship' => 'Ayah',
+            'is_premature' => true,
+            'gestational_age_weeks' => 32,
+            'is_active' => true,
+        ]);
+    }
+
+    public function test_patient_update_rejects_duplicate_medical_record_number(): void
+    {
+        $nurseRole = Role::create([
+            'name' => 'perawat',
+        ]);
+
+        $parentRole = Role::create([
+            'name' => 'orang_tua',
+        ]);
+
+        $nurse = User::create([
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
+            'password' => 'password',
+            'role_id' => $nurseRole->id,
+        ]);
+
+        $parent = User::create([
+            'name' => 'Orang Tua Test',
+            'email' => 'orangtua@test.local',
+            'password' => 'password',
+            'role_id' => $parentRole->id,
+        ]);
+
+        $parentGuardian = ParentGuardian::create([
+            'user_id' => $parent->id,
+        ]);
+
+        $existingPatient = Patient::create([
+            'parent_guardian_id' => $parentGuardian->id,
+            'medical_record_number' => 'RM-EXISTING-001',
+            'name' => 'Pasien Lama',
+            'birth_date' => '2024-01-01',
+            'gender' => 'L',
+            'guardian_relationship' => 'Ibu',
+            'is_premature' => false,
+            'gestational_age_weeks' => null,
+            'is_active' => true,
+        ]);
+
+        $patientToUpdate = Patient::create([
+            'parent_guardian_id' => $parentGuardian->id,
+            'medical_record_number' => 'RM-EDIT-002',
+            'name' => 'Pasien yang Diubah',
+            'birth_date' => '2024-06-01',
+            'gender' => 'P',
+            'guardian_relationship' => 'Ibu',
+            'is_premature' => false,
+            'gestational_age_weeks' => null,
+            'is_active' => true,
+        ]);
+
+        $response = $this->actingAs($nurse)
+            ->from(route('patients.edit', $patientToUpdate))
+            ->put(route('patients.update', $patientToUpdate), [
+                'parent_guardian_id' => $parentGuardian->id,
+                'medical_record_number' => $existingPatient->medical_record_number,
+                'name' => 'Pasien yang Diubah',
+                'birth_date' => '2024-06-01',
+                'gender' => 'P',
+                'guardian_relationship' => 'Ibu',
+                'is_premature' => false,
+                'gestational_age_weeks' => null,
+            ]);
+
+        $response->assertRedirect(route('patients.edit', $patientToUpdate));
+        $response->assertSessionHasErrors('medical_record_number');
+
+        $this->assertDatabaseHas('patients', [
+            'id' => $patientToUpdate->id,
+            'medical_record_number' => 'RM-EDIT-002',
+            'name' => 'Pasien yang Diubah',
+        ]);
+    }
+
 }

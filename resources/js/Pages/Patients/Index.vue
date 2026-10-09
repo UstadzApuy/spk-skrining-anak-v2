@@ -85,6 +85,9 @@ const user = page.props.auth.user;
                                 <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
                                     Status
                                 </th>
+                                <th class="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500">
+                                    Aksi
+                                </th>
                             </tr>
                         </thead>
 
@@ -124,6 +127,15 @@ const user = page.props.auth.user;
                                     >
                                         {{ patient.is_active ? 'Aktif' : 'Tidak Aktif' }}
                                     </span>
+                                </td>
+
+                                <td class="whitespace-nowrap px-6 py-4">
+                                    <Link
+                                        :href="`/patients/${patient.id}/edit`"
+                                        class="text-sm font-medium text-blue-700 hover:text-blue-900"
+                                    >
+                                        Ubah
+                                    </Link>
                                 </td>
                             </tr>
                         </tbody>

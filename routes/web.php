@@ -30,6 +30,12 @@ Route::middleware('auth')->group(function () {
 
         Route::post('/patients', [PatientController::class, 'store'])
             ->name('patients.store');
+
+        Route::get('/patients/{patient}/edit', [PatientController::class, 'edit'])
+            ->name('patients.edit');
+
+        Route::put('/patients/{patient}', [PatientController::class, 'update'])
+            ->name('patients.update');
     });
 });
 

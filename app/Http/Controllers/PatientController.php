@@ -64,6 +64,111 @@ class PatientController extends Controller
         ]);
     }
 
+        /**
+     * Display the patient editing form.
+     */
+    public function edit(Patient $patient): Response
+    {
+        $parentGuardians = ParentGuardian::query()
+            ->with('user:id,name,email')
+            ->whereHas('user', function ($query) {
+                $query->whereHas('role', function ($roleQuery) {
+                    $roleQuery->where('name', 'orang_tua');
+                });
+            })
+            ->get([
+                'id',
+                'user_id',
+            ])
+            ->sortBy(fn ($parentGuardian) => $parentGuardian->user?->name)
+            ->values();
+
+        return Inertia::render('Patients/Edit', [
+            'patient' => [
+                'id' => $patient->id,
+                'parent_guardian_id' => $patient->parent_guardian_id,
+                'medical_record_number' => $patient->medical_record_number,
+                'name' => $patient->name,
+                'birth_date' => $patient->birth_date->format('Y-m-d'),
+                'gender' => $patient->gender,
+                'guardian_relationship' => $patient->guardian_relationship ?? '',
+                'is_premature' => $patient->is_premature,
+                'gestational_age_weeks' => $patient->gestational_age_weeks,
+            ],
+            'parentGuardians' => $parentGuardians,
+        ]);
+    }
+
+    /**
+     * Update an existing patient.
+     */
+    public function update(Request $request, Patient $patient): RedirectResponse
+    {
+        $validated = $request->validate([
+            'parent_guardian_id' => [
+                'required',
+                'integer',
+                Rule::exists('parent_guardians', 'id')
+                    ->where(function ($query) {
+                        $query->whereIn(
+                            'user_id',
+                            User::query()
+                                ->whereHas('role', function ($roleQuery) {
+                                    $roleQuery->where('name', 'orang_tua');
+                                })
+                                ->select('id')
+                        );
+                    }),
+            ],
+            'medical_record_number' => [
+                'required',
+                'string',
+                'max:100',
+                Rule::unique('patients', 'medical_record_number')
+                    ->ignore($patient->id),
+            ],
+            'name' => [
+                'required',
+                'string',
+                'max:150',
+            ],
+            'birth_date' => [
+                'required',
+                'date',
+            ],
+            'gender' => [
+                'required',
+                Rule::in(['L', 'P']),
+            ],
+            'guardian_relationship' => [
+                'nullable',
+                'string',
+                'max:50',
+            ],
+            'is_premature' => [
+                'required',
+                'boolean',
+            ],
+            'gestational_age_weeks' => [
+                'nullable',
+                'integer',
+                'min:20',
+                'max:45',
+                Rule::requiredIf($request->boolean('is_premature')),
+            ],
+        ]);
+
+        if (! $validated['is_premature']) {
+            $validated['gestational_age_weeks'] = null;
+        }
+
+        $patient->update($validated);
+
+        return redirect()
+            ->route('patients.index')
+            ->with('success', 'Data pasien berhasil diperbarui.');
+    }
+
     /**
      * Store a newly created patient.
      */
