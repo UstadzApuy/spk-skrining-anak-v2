@@ -3,6 +3,8 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PatientController;
+use App\Http\Controllers\ScreeningSessionController;
+use App\Http\Controllers\SdqScreeningController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -36,8 +38,34 @@ Route::middleware('auth')->group(function () {
 
         Route::put('/patients/{patient}', [PatientController::class, 'update'])
             ->name('patients.update');
-    });
-});
+
+        Route::get('/screening-sessions/create', [
+            ScreeningSessionController::class,
+            'create',
+        ])->name('screening-sessions.create');
+
+        Route::get(
+            '/screening-sessions/{screeningSession}/sdq',
+            [SdqScreeningController::class, 'create']
+        )->name('screening-sessions.sdq.create');
+
+        Route::post(
+            '/screening-sessions/{screeningSession}/sdq',
+            [SdqScreeningController::class, 'store']
+        )->name('screening-sessions.sdq.store');
+
+        Route::get(
+            '/screening-sessions/{screeningSession}',
+            [ScreeningSessionController::class, 'show']
+        )->name('screening-sessions.show');
+
+        Route::get('/screening-sessions', [ScreeningSessionController::class, 'index'])
+            ->name('screening-sessions.index');
+
+        Route::post('/screening-sessions', [ScreeningSessionController::class, 'store'])
+            ->name('screening-sessions.store');
+            });
+        });
 
 Route::get('/', function () {
     return Inertia::render('Welcome');

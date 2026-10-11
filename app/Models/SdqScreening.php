@@ -24,6 +24,10 @@ class SdqScreening extends Model
         'total_difficulties_category',
         'prosocial_category',
         'recommendation',
+        'emotional_category',
+        'conduct_category',
+        'hyperactivity_category',
+        'peer_category',
     ];
 
     /**

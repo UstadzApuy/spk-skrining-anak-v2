@@ -14,6 +14,7 @@ class KpspScreening extends Model
      */
     protected $fillable = [
         'screening_session_id',
+        'form_age_months',
         'answers',
         'score',
         'category',
@@ -36,6 +37,7 @@ class KpspScreening extends Model
     protected function casts(): array
     {
         return [
+            'form_age_months' => 'integer',
             'answers' => 'array',
             'score' => 'integer',
         ];
