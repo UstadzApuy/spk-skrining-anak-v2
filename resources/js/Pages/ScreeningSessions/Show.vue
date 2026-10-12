@@ -1,7 +1,9 @@
 
 <script setup>
-import { Head, Link } from '@inertiajs/vue3';
+import { Head, Link, usePage } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+
+const page = usePage();
 
 defineProps({
     session: {
@@ -68,6 +70,16 @@ function categoryLabel(category) {
         normal: 'Normal',
         ambang_borderline: 'Ambang / Borderline',
         abnormal: 'Abnormal',
+    };
+
+    return labels[category] ?? category ?? '-';
+}
+
+function srqCategoryLabel(category) {
+    const labels = {
+        di_bawah_nilai_pisah: 'Di bawah nilai pisah (skor 0–5)',
+        gangguan_mental_emosional_distres:
+            'Memenuhi nilai pisah (skor 6–20)',
     };
 
     return labels[category] ?? category ?? '-';
@@ -242,7 +254,8 @@ function categoryLabel(category) {
 
                         <Link
                             v-if="
-                                instrument.instrument_code === 'SDQ'
+                                page.props.auth?.user?.role === 'perawat'
+                                && instrument.instrument_code === 'SDQ'
                                 && !['reviewed', 'cancelled'].includes(session.status)
                             "
                             :href="`/screening-sessions/${session.id}/sdq`"
@@ -252,6 +265,22 @@ function categoryLabel(category) {
                                 instrument.status === 'completed'
                                     ? 'Buka Jawaban SDQ'
                                     : 'Kerjakan SDQ'
+                            }}
+                        </Link>
+
+                        <Link
+                            v-if="
+                                page.props.auth?.user?.role === 'perawat'
+                                && instrument.instrument_code === 'SRQ'
+                                && !['reviewed', 'cancelled'].includes(session.status)
+                            "
+                            :href="`/screening-sessions/${session.id}/srq`"
+                            class="rounded-lg bg-gray-900 px-3 py-2 text-sm font-semibold text-white hover:bg-gray-800"
+                        >
+                            {{
+                                instrument.status === 'completed'
+                                    ? 'Buka Jawaban SRQ-20'
+                                    : 'Kerjakan SRQ-20'
                             }}
                         </Link>
 
@@ -367,6 +396,61 @@ function categoryLabel(category) {
 
                 <p class="border-t border-gray-200 px-6 py-4 text-xs text-gray-500">
                     Hasil SDQ merupakan hasil skrining, bukan diagnosis klinis.
+                </p>
+            </section>
+
+            <section
+                v-if="session.srq_screening"
+                class="overflow-hidden rounded-xl bg-white shadow-sm"
+            >
+                <div class="border-b border-gray-200 px-6 py-5">
+                    <h3 class="text-lg font-semibold text-gray-900">
+                        Hasil SRQ-20 Orang Tua/Pengasuh
+                    </h3>
+
+                    <p class="mt-1 text-sm text-gray-500">
+                        Hasil berdasarkan jawaban responden selama 30 hari terakhir.
+                    </p>
+                </div>
+
+                <div class="p-6">
+                    <div class="rounded-lg border border-gray-200 p-5">
+                        <p class="text-sm text-gray-500">
+                            Skor Total SRQ-20
+                        </p>
+
+                        <p class="mt-2 text-3xl font-semibold text-gray-900">
+                            {{ session.srq_screening.score }} / 20
+                        </p>
+
+                        <p class="mt-2 text-sm font-semibold text-gray-700">
+                            {{ srqCategoryLabel(session.srq_screening.category) }}
+                        </p>
+                    </div>
+
+                    <div
+                        v-if="session.srq_screening.answers?.[16] === true"
+                        class="mt-4 rounded-lg border border-red-300 bg-red-50 p-4"
+                    >
+                        <h4 class="text-sm font-semibold text-red-900">
+                            Perlu Perhatian Klinis
+                        </h4>
+
+                        <p class="mt-2 text-sm leading-6 text-red-800">
+                            Responden menjawab Ya pada pertanyaan 17 mengenai
+                            pikiran untuk mengakhiri hidup. Pastikan dokter meninjau
+                            jawaban ini dan menindaklanjutinya sesuai prosedur klinis
+                            yang berlaku, terlepas dari skor total SRQ-20.
+                        </p>
+                    </div>
+                </div>
+
+                <p class="border-t border-gray-200 px-6 py-4 text-xs leading-5 text-gray-500">
+                    SRQ-20 merupakan instrumen skrining, bukan alat diagnosis klinis.
+                    Skor ini menggambarkan kondisi orang tua/pengasuh yang mengisi
+                    kuesioner, bukan hasil pengukuran langsung kondisi mental anak.
+                    Dokter perlu menafsirkan hasil sesuai kondisi responden dan
+                    informasi klinis yang tersedia.
                 </p>
             </section>
 

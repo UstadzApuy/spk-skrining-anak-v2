@@ -5,6 +5,7 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\PatientController;
 use App\Http\Controllers\ScreeningSessionController;
 use App\Http\Controllers\SdqScreeningController;
+use App\Http\Controllers\SrqScreeningController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 
@@ -44,6 +45,11 @@ Route::middleware('auth')->group(function () {
             'create',
         ])->name('screening-sessions.create');
 
+        Route::post('/screening-sessions', [
+            ScreeningSessionController::class,
+            'store',
+        ])->name('screening-sessions.store');
+
         Route::get(
             '/screening-sessions/{screeningSession}/sdq',
             [SdqScreeningController::class, 'create']
@@ -55,17 +61,33 @@ Route::middleware('auth')->group(function () {
         )->name('screening-sessions.sdq.store');
 
         Route::get(
+            '/screening-sessions/{screeningSession}/srq',
+            [SrqScreeningController::class, 'create']
+        )->name('screening-sessions.srq.create');
+
+        Route::post(
+            '/screening-sessions/{screeningSession}/srq',
+            [SrqScreeningController::class, 'store']
+        )->name('screening-sessions.srq.store');
+
+        Route::get(
+            '/screening-sessions/{screeningSession}/srq/complete',
+            [SrqScreeningController::class, 'complete']
+        )->name('screening-sessions.srq.complete');
+    });
+
+    Route::middleware('role:perawat,dokter')->group(function () {
+        Route::get('/screening-sessions', [
+            ScreeningSessionController::class,
+            'index',
+        ])->name('screening-sessions.index');
+
+        Route::get(
             '/screening-sessions/{screeningSession}',
             [ScreeningSessionController::class, 'show']
         )->name('screening-sessions.show');
-
-        Route::get('/screening-sessions', [ScreeningSessionController::class, 'index'])
-            ->name('screening-sessions.index');
-
-        Route::post('/screening-sessions', [ScreeningSessionController::class, 'store'])
-            ->name('screening-sessions.store');
-            });
-        });
+    });
+});
 
 Route::get('/', function () {
     return Inertia::render('Welcome');

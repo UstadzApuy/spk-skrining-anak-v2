@@ -16,24 +16,31 @@ use InvalidArgumentException;
 class ScreeningSessionController extends Controller
 {
     /**
-     * Display screening sessions created by the authenticated nurse.
+     * Display screening sessions accessible to the authenticated user.
      */
-    public function index(Request $request)
+    public function index(Request $request): Response
     {
-        $nurse = $request->user()->nurse;
+        $user = $request->user();
 
-        abort_unless(
-            $nurse,
-            403,
-            'Akun perawat belum memiliki profil perawat.'
-        );
-
-        $sessions = ScreeningSession::query()
-            ->where('nurse_id', $nurse->id)
+        $query = ScreeningSession::query()
             ->with([
                 'patient:id,medical_record_number,name',
                 'screeningSessionInstruments:id,screening_session_id,instrument_code,status',
-            ])
+            ]);
+
+        if ($user->hasRole('perawat')) {
+            $nurse = $user->nurse;
+
+            abort_unless(
+                $nurse,
+                403,
+                'Akun perawat belum memiliki profil perawat.'
+            );
+
+            $query->where('nurse_id', $nurse->id);
+        }
+
+        $sessions = $query
             ->orderByDesc('screening_date')
             ->paginate(15);
 
@@ -68,31 +75,36 @@ class ScreeningSessionController extends Controller
         ]);
     }
 
-
     /**
-     * Display a screening session owned by the authenticated nurse.
+     * Display a screening session accessible to the authenticated user.
      */
+
     public function show(
         Request $request,
         ScreeningSession $screeningSession
     ): Response {
-        $nurse = $request->user()->nurse;
+        $user = $request->user();
 
-        abort_unless(
-            $nurse,
-            403,
-            'Akun perawat belum memiliki profil perawat.'
-        );
+        if ($user->hasRole('perawat')) {
+            $nurse = $user->nurse;
 
-        abort_unless(
-            (int) $screeningSession->nurse_id === (int) $nurse->id,
-            403
-        );
+            abort_unless(
+                $nurse,
+                403,
+                'Akun perawat belum memiliki profil perawat.'
+            );
+
+            abort_unless(
+                (int) $screeningSession->nurse_id === (int) $nurse->id,
+                403
+            );
+        }
 
         $screeningSession->load([
             'patient:id,medical_record_number,name,birth_date,gender',
             'screeningSessionInstruments:id,screening_session_id,instrument_code,status,started_at,completed_at',
             'sdqScreening',
+            'srqScreening',
         ]);
 
         return Inertia::render('ScreeningSessions/Show', [

@@ -110,6 +110,7 @@ const instrumentLabels = {
 
                 <div class="flex flex-wrap gap-3">
                     <Link
+                        v-if="page.props.auth?.user?.role === 'perawat'"
                         href="/patients"
                         class="rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-50"
                     >
@@ -117,6 +118,7 @@ const instrumentLabels = {
                     </Link>
 
                     <Link
+                        v-if="page.props.auth?.user?.role === 'perawat'"
                         href="/screening-sessions/create"
                         class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800"
                     >
