@@ -2,7 +2,12 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\GpphScreeningController;
+use App\Http\Controllers\KpspScreeningController;
+use App\Http\Controllers\MchatScreeningController;
 use App\Http\Controllers\PatientController;
+use App\Http\Controllers\ScreeningInterpretationController;
+use App\Http\Controllers\ScreeningRecapController;
 use App\Http\Controllers\ScreeningSessionController;
 use App\Http\Controllers\SdqScreeningController;
 use App\Http\Controllers\SrqScreeningController;
@@ -74,6 +79,41 @@ Route::middleware('auth')->group(function () {
             '/screening-sessions/{screeningSession}/srq/complete',
             [SrqScreeningController::class, 'complete']
         )->name('screening-sessions.srq.complete');
+
+        Route::get(
+            '/screening-sessions/{screeningSession}/kpsp',
+            [KpspScreeningController::class, 'create']
+        )->name('screening-sessions.kpsp.create');
+
+        Route::post(
+            '/screening-sessions/{screeningSession}/kpsp',
+            [KpspScreeningController::class, 'store']
+        )->name('screening-sessions.kpsp.store');
+
+        Route::post(
+            '/screening-sessions/{screeningSession}/schedule-kpsp-re-evaluation',
+            [ScreeningSessionController::class, 'scheduleKpspReEvaluation']
+        )->name('screening-sessions.schedule-kpsp-re-evaluation');
+
+        Route::get(
+            '/screening-sessions/{screeningSession}/mchat',
+            [MchatScreeningController::class, 'create']
+        )->name('screening-sessions.mchat.create');
+
+        Route::post(
+            '/screening-sessions/{screeningSession}/mchat',
+            [MchatScreeningController::class, 'store']
+        )->name('screening-sessions.mchat.store');
+
+        Route::get(
+            '/screening-sessions/{screeningSession}/gpph',
+            [GpphScreeningController::class, 'create']
+        )->name('screening-sessions.gpph.create');
+
+        Route::post(
+            '/screening-sessions/{screeningSession}/gpph',
+            [GpphScreeningController::class, 'store']
+        )->name('screening-sessions.gpph.store');
     });
 
     Route::middleware('role:perawat,dokter')->group(function () {
@@ -85,10 +125,40 @@ Route::middleware('auth')->group(function () {
         Route::get(
             '/screening-sessions/{screeningSession}',
             [ScreeningSessionController::class, 'show']
-        )->name('screening-sessions.show');
+        )->whereNumber('screeningSession')
+            ->name('screening-sessions.show');
+    });
+
+    Route::middleware('role:perawat,dokter,administrator')->group(function () {
+        Route::get('/rekapitulasi', [
+            ScreeningRecapController::class,
+            'index',
+        ])->name('screening-recap.index');
+    });
+
+    Route::middleware('role:dokter')->group(function () {
+        Route::post(
+            '/screening-sessions/{screeningSession}/interpretations',
+            [ScreeningInterpretationController::class, 'store']
+        )->name('screening-sessions.interpretations.store');
+
+        Route::post(
+            '/screening-sessions/{screeningSession}/finalize',
+            [ScreeningInterpretationController::class, 'finalize']
+        )->name('screening-sessions.finalize');
+
+        Route::delete(
+            '/screening-sessions/{screeningSession}',
+            [ScreeningSessionController::class, 'destroy']
+        )->whereNumber('screeningSession')
+            ->name('screening-sessions.destroy');
     });
 });
 
 Route::get('/', function () {
+    if (auth()->check()) {
+        return redirect()->route('dashboard');
+    }
+
     return Inertia::render('Welcome');
 });

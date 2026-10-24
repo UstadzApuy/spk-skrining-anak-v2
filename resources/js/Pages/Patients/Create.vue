@@ -30,20 +30,32 @@ const submit = () => {
 
     <AuthenticatedLayout>
         <template #header>
-            <div>
-                <h2 class="text-xl font-semibold text-gray-900">
-                    Tambah Pasien
-                </h2>
-
-                <p class="mt-1 text-sm text-gray-500">
-                    Tambahkan data pasien baru untuk proses skrining anak.
-                </p>
+            <div class="space-y-3">
+                <div>
+                    <Link
+                        href="/dashboard"
+                        class="inline-flex items-center gap-1.5 text-xs font-bold text-teal hover:text-navy transition"
+                    >
+                        <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M15 19l-7-7 7-7" />
+                        </svg>
+                        Back to Patient Directory (Patient Selection)
+                    </Link>
+                </div>
+                <div>
+                    <h2 class="text-xl font-extrabold text-navy">
+                        Tambah Pasien Baru
+                    </h2>
+                    <p class="mt-0.5 text-xs text-gray-500">
+                        Tambahkan data identitas anak baru untuk proses skrining tumbuh kembang UPTD BLK-ABK.
+                    </p>
+                </div>
             </div>
         </template>
 
         <div class="max-w-3xl">
             <form
-                class="space-y-6 rounded-xl bg-white p-6 shadow-sm"
+                class="space-y-6 rounded-2xl bg-white p-8 shadow-xs border border-sand/40"
                 @submit.prevent="submit"
             >
                 <div>
@@ -262,10 +274,10 @@ const submit = () => {
                     </div>
                 </div>
 
-                <div class="flex items-center justify-end gap-3 border-t border-gray-200 pt-6">
+                <div class="flex items-center justify-end gap-3 border-t border-sand/40 pt-6">
                     <Link
-                        href="/patients"
-                        class="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+                        href="/dashboard"
+                        class="rounded-xl border border-sand/60 px-4 py-2 text-xs font-bold text-navy hover:bg-sand-light transition shadow-2xs"
                     >
                         Batal
                     </Link>
@@ -273,7 +285,7 @@ const submit = () => {
                     <button
                         type="submit"
                         :disabled="form.processing"
-                        class="rounded-lg bg-gray-900 px-4 py-2 text-sm font-semibold text-white hover:bg-gray-800 disabled:cursor-not-allowed disabled:opacity-50"
+                        class="rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 transition shadow-sm"
                     >
                         {{ form.processing ? 'Menyimpan...' : 'Simpan Pasien' }}
                     </button>

@@ -174,6 +174,10 @@ class KpspAgeCalculator
      */
     private function selectKpspFormAge(int $ageMonths): ?int
     {
+        if ($ageMonths < 3 || $ageMonths > 72) {
+            return null;
+        }
+
         $selectedAge = null;
 
         foreach (self::KPSP_FORM_AGES as $formAge) {

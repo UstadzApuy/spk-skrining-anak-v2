@@ -2,6 +2,7 @@
 
 namespace Tests\Feature;
 
+use App\Models\Doctor;
 use App\Models\Nurse;
 use App\Models\ParentGuardian;
 use App\Models\Patient;
@@ -10,6 +11,7 @@ use App\Models\ScreeningSession;
 use App\Models\User;
 use App\Models\SdqScreening;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class ScreeningSessionTest extends TestCase
@@ -78,7 +80,9 @@ class ScreeningSessionTest extends TestCase
                 'status' => 'reviewed',
             ]);
 
-        $response->assertRedirect(route('screening-sessions.index'));
+        $response->assertRedirect(route('screening-sessions.index', [
+            'patient_id' => $patient->id,
+        ]));
 
         $response->assertSessionHas(
             'success',
@@ -88,6 +92,10 @@ class ScreeningSessionTest extends TestCase
         $session = ScreeningSession::query()->firstOrFail();
 
         $this->assertSame($nurse->id, $session->nurse_id);
+        $this->assertSame(
+            $nurseUser->id,
+            $session->created_by_user_id
+        );
         $this->assertSame(48, $session->age_months);
         $this->assertSame('draft', $session->status);
 
@@ -160,6 +168,7 @@ class ScreeningSessionTest extends TestCase
             'status' => 'draft',
         ]);
 
+        $session->created_by_user_id = $nurseUser->id;
         $session->age_months = 61;
         $session->save();
 
@@ -184,6 +193,7 @@ class ScreeningSessionTest extends TestCase
             'status' => 'draft',
         ]);
 
+        $session->created_by_user_id = $nurseUser->id;
         $session->age_months = 47;
         $session->save();
 
@@ -220,6 +230,7 @@ class ScreeningSessionTest extends TestCase
             'status' => 'draft',
         ]);
 
+        $session->created_by_user_id = $ownerUser->id;
         $session->age_months = 61;
         $session->save();
 
@@ -299,6 +310,7 @@ class ScreeningSessionTest extends TestCase
             'status' => 'draft',
         ]);
 
+        $session->created_by_user_id = $nurseUser->id;
         $session->age_months = 5;
         $session->save();
 
@@ -335,6 +347,7 @@ class ScreeningSessionTest extends TestCase
             'status' => 'draft',
         ]);
 
+        $session->created_by_user_id = $ownerUser->id;
         $session->age_months = 5;
         $session->save();
 
@@ -475,6 +488,7 @@ private function createEligibleSdqSession(): array
         'status' => 'draft',
     ]);
 
+    $session->created_by_user_id = $nurseUser->id;
     $session->age_months = 61;
     $session->save();
 
@@ -485,4 +499,118 @@ private function createEligibleSdqSession(): array
 
     return [$nurseUser, $session];
 }
+
+    public function test_doctor_can_delete_screening_session(): void
+    {
+        [$nurseUser, $session] = $this->createEligibleSdqSession();
+        $patientId = $session->patient_id;
+
+        $doctorRole = Role::firstOrCreate(['name' => 'dokter']);
+        $doctorUser = User::create([
+            'name' => 'dr. Spesialis Anak',
+            'email' => 'dokter-delete@test.local',
+            'password' => 'password',
+            'role_id' => $doctorRole->id,
+        ]);
+        Doctor::create([
+            'user_id' => $doctorUser->id,
+            'specialization' => 'Spesialis Anak',
+        ]);
+
+        $response = $this->actingAs($doctorUser)
+            ->delete(route('screening-sessions.destroy', $session));
+
+        $response->assertRedirect(route('screening-sessions.index', ['patient_id' => $patientId]));
+        $response->assertSessionHas('success', 'Sesi skrining berhasil dihapus.');
+
+        $this->assertDatabaseMissing('screening_sessions', ['id' => $session->id]);
+        $this->assertDatabaseMissing('screening_session_instruments', ['screening_session_id' => $session->id]);
+    }
+
+    public function test_nurse_cannot_delete_screening_session(): void
+    {
+        [$nurseUser, $session] = $this->createEligibleSdqSession();
+
+        $response = $this->actingAs($nurseUser)
+            ->delete(route('screening-sessions.destroy', $session));
+
+        $response->assertForbidden();
+        $this->assertDatabaseHas('screening_sessions', ['id' => $session->id]);
+    }
+
+    public function test_guest_cannot_delete_screening_session(): void
+    {
+        [$nurseUser, $session] = $this->createEligibleSdqSession();
+
+        $response = $this->delete(route('screening-sessions.destroy', $session));
+
+        $response->assertRedirect(route('login'));
+        $this->assertDatabaseHas('screening_sessions', ['id' => $session->id]);
+    }
+
+    public function test_user_can_search_screening_sessions_by_patient_name_or_mrn(): void
+    {
+        [$nurseUser, $session] = $this->createEligibleSdqSession();
+        $patient = $session->patient;
+
+        // Search by exact name
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.index', ['search' => $patient->name]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/Index')
+                ->where('sessions.data.0.id', $session->id)
+                ->where('filters.search', $patient->name)
+            );
+
+        // Search by non-existent query
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.index', ['search' => 'NAMA_TIDAK_MUNGKIN_ADA_XYZ']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/Index')
+                ->has('sessions.data', 0)
+            );
+    }
+
+    public function test_user_can_filter_screening_sessions_by_status_and_instrument(): void
+    {
+        [$nurseUser, $session] = $this->createEligibleSdqSession();
+
+        // Status filter matching
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.index', ['status' => 'draft']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/Index')
+                ->where('sessions.data.0.id', $session->id)
+            );
+
+        // Status filter not matching
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.index', ['status' => 'reviewed']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/Index')
+                ->has('sessions.data', 0)
+            );
+
+        // Instrument filter matching SDQ
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.index', ['instrument' => 'SDQ']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/Index')
+                ->where('sessions.data.0.id', $session->id)
+            );
+
+        // Instrument filter not matching KPSP
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.index', ['instrument' => 'KPSP']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/Index')
+                ->has('sessions.data', 0)
+            );
+    }
 }

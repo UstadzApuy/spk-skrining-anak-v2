@@ -9,7 +9,7 @@ const user = usePage().props.auth.user;
     <Head title="Dashboard Orang Tua" />
 
     <AuthenticatedLayout>
-        <template #header>
+        <div class="space-y-6">
             <div>
                 <h2 class="text-xl font-semibold text-gray-900">
                     Dashboard Orang Tua
@@ -19,17 +19,17 @@ const user = usePage().props.auth.user;
                     Pengisian instrumen skrining untuk anak.
                 </p>
             </div>
-        </template>
 
-        <div class="rounded-xl bg-white p-6 shadow-sm">
-            <h3 class="text-lg font-semibold text-gray-900">
-                Selamat datang, {{ user.name }}
-            </h3>
+            <div class="rounded-xl bg-white p-6 shadow-sm">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Selamat datang, {{ user.name }}
+                </h3>
 
-            <p class="mt-2 text-sm text-gray-600">
-                Gunakan menu navigasi untuk mengisi instrumen skrining yang
-                tersedia untuk anak.
-            </p>
+                <p class="mt-2 text-sm text-gray-600">
+                    Gunakan menu navigasi untuk mengisi instrumen skrining yang
+                    tersedia untuk anak.
+                </p>
+            </div>
         </div>
     </AuthenticatedLayout>
 </template>

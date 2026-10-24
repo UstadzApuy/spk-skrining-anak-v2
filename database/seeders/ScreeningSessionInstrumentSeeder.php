@@ -13,32 +13,7 @@ class ScreeningSessionInstrumentSeeder extends Seeder
      */
     public function run(): void
     {
-        $session = ScreeningSession::whereHas('patient', function ($query) {
-            $query->where('medical_record_number', 'RM-TEST-001');
-        })
-            ->where('screening_date', '2026-09-25')
-            ->firstOrFail();
-
-        $instrumentCodes = [
-            'KPSP',
-            'MCHAT',
-            'GPPH',
-            'SDQ',
-            'SRQ',
-        ];
-
-        foreach ($instrumentCodes as $instrumentCode) {
-            ScreeningSessionInstrument::updateOrCreate(
-                [
-                    'screening_session_id' => $session->id,
-                    'instrument_code' => $instrumentCode,
-                ],
-                [
-                    'status' => 'pending',
-                    'started_at' => null,
-                    'completed_at' => null,
-                ]
-            );
-        }
+        // Seluruh instrumen sesi kini di-seed secara terstruktur dan komprehensif
+        // langsung di ScreeningSessionSeeder sesuai rentang umur yang eligible.
     }
 }

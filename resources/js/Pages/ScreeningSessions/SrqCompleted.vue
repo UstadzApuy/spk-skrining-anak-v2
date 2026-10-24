@@ -12,8 +12,8 @@ defineProps({
 <template>
     <Head title="Pengisian SRQ-20 Selesai" />
 
-    <main class="flex min-h-screen items-center justify-center bg-gray-50 px-4 py-8">
-        <section class="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm sm:p-10">
+    <main class="flex min-h-screen items-center justify-center bg-[#EAE6DC] dark:bg-[#071322] px-4 py-8">
+        <section class="w-full max-w-lg rounded-2xl border border-sand/40 dark:border-white/10 bg-white dark:bg-[#0C2038] p-8 text-center shadow-sm sm:p-10">
             <div class="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-green-100">
                 <svg
                     xmlns="http://www.w3.org/2000/svg"

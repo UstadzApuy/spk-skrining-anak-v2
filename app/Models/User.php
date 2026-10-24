@@ -53,13 +53,43 @@ class User extends Authenticatable
     }
 
     /**
-     * Determine whether the user has one of the given roles.
+     * Get the doctor profile associated with this user.
      */
-    public function hasRole(string ...$roles): bool
+    public function doctor(): HasOne
+    {
+        return $this->hasOne(Doctor::class);
+    }
+
+    /**
+     * Get the parent guardian profile associated with this user.
+     */
+    public function parentGuardian(): HasOne
+    {
+        return $this->hasOne(ParentGuardian::class);
+    }
+
+    /**
+     * Determine whether the user has one of the given roles.
+     *
+     * @param  string|array<string>  ...$roles
+     */
+    public function hasRole(string|array ...$roles): bool
     {
         $role = $this->role?->name;
+        if ($role === null) {
+            return false;
+        }
 
-        return $role !== null && in_array($role, $roles, true);
+        $flattened = [];
+        foreach ($roles as $r) {
+            if (is_array($r)) {
+                $flattened = array_merge($flattened, $r);
+            } else {
+                $flattened[] = $r;
+            }
+        }
+
+        return in_array($role, $flattened, true);
     }
 
     /**

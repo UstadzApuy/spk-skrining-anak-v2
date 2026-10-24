@@ -9,7 +9,7 @@ const user = usePage().props.auth.user;
     <Head title="Dashboard Administrator" />
 
     <AuthenticatedLayout>
-        <template #header>
+        <div class="space-y-6">
             <div>
                 <h2 class="text-xl font-semibold text-gray-900">
                     Dashboard Administrator
@@ -19,16 +19,16 @@ const user = usePage().props.auth.user;
                     Ringkasan dan pengelolaan administrasi sistem.
                 </p>
             </div>
-        </template>
 
-        <div class="rounded-xl bg-white p-6 shadow-sm">
-            <h3 class="text-lg font-semibold text-gray-900">
-                Selamat datang, {{ user.name }}
-            </h3>
+            <div class="rounded-xl bg-white p-6 shadow-sm">
+                <h3 class="text-lg font-semibold text-gray-900">
+                    Selamat datang, {{ user.name }}
+                </h3>
 
-            <p class="mt-2 text-sm text-gray-600">
-                Gunakan menu navigasi untuk mengelola data dan pengguna sistem.
-            </p>
+                <p class="mt-2 text-sm text-gray-600">
+                    Gunakan menu navigasi untuk mengelola data dan pengguna sistem.
+                </p>
+            </div>
         </div>
     </AuthenticatedLayout>
 </template>

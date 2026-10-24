@@ -49,6 +49,15 @@ final class GpphScorer implements ScorerInterface
             default => 'normal',
         };
 
+        $recommendation = match ($category) {
+            'kemungkinan_gpph' =>
+                'Rujuk ke RS tumbuh kembang level 1.',
+            'meragukan' =>
+                'Lakukan intervensi dini masalah perilaku dan emosi. Evaluasi ulang 1 bulan kemudian dengan buku SDIDTK.',
+            'normal' =>
+                'Berikan pujian kepada orang tua atau pengasuh dan anak. Lanjutkan stimulasi sesuai umur. Jadwalkan kunjungan berikutnya.',
+        };
+
         return new ScoringResult(
             instrumentCode: $this->instrumentCode(),
             scores: [
@@ -57,7 +66,7 @@ final class GpphScorer implements ScorerInterface
             categories: [
                 'overall' => $category,
             ],
-            recommendation: null,
+            recommendation: $recommendation,
         );
     }
 }

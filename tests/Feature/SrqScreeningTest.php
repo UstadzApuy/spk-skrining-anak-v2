@@ -48,6 +48,11 @@ class SrqScreeningTest extends TestCase
         $this->assertDatabaseHas('srq_screenings', [
             'screening_session_id' => $session->id,
             'score' => 5,
+            'depression_score' => 0,
+            'anxiety_score' => 3,
+            'somatic_score' => 2,
+            'cognitive_score' => 0,
+            'energy_score' => 0,
             'category' => 'di_bawah_nilai_pisah',
         ]);
 
@@ -93,6 +98,11 @@ class SrqScreeningTest extends TestCase
         $this->assertDatabaseHas('srq_screenings', [
             'screening_session_id' => $session->id,
             'score' => 6,
+            'depression_score' => 1,
+            'anxiety_score' => 3,
+            'somatic_score' => 2,
+            'cognitive_score' => 0,
+            'energy_score' => 0,
             'category' => 'gangguan_mental_emosional_distres',
         ]);
     }
@@ -320,6 +330,7 @@ class SrqScreeningTest extends TestCase
             'status' => 'draft',
         ]);
 
+        $session->created_by_user_id = $nurseUser->id;
         $session->age_months = 48;
         $session->save();
 

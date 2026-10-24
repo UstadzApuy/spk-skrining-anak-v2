@@ -22,9 +22,14 @@ class ScreeningSession extends Model
         'nurse_id',
         'doctor_id',
         'screening_date',
+        'age_months',
         'status',
+        'evaluation_type',
+        'parent_session_id',
         'notes',
         'doctor_notes',
+        'reviewed_at',
+        'created_by_user_id',
     ];
 
     /**
@@ -52,11 +57,43 @@ class ScreeningSession extends Model
     }
 
     /**
+     * Get the user who created this screening session.
+     */
+    public function createdByUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /**
      * Get the instruments selected for this screening session.
      */
     public function screeningSessionInstruments(): HasMany
     {
         return $this->hasMany(ScreeningSessionInstrument::class);
+    }
+
+    /**
+     * Get the parent screening session if this session is a re-evaluation.
+     */
+    public function parentSession(): BelongsTo
+    {
+        return $this->belongsTo(ScreeningSession::class, 'parent_session_id');
+    }
+
+    /**
+     * Get any re-evaluation screening sessions conducted for this session.
+     */
+    public function reEvaluations(): HasMany
+    {
+        return $this->hasMany(ScreeningSession::class, 'parent_session_id');
+    }
+
+    /**
+     * Check if this session is a 2-week re-evaluation session.
+     */
+    public function isReEvaluation(): bool
+    {
+        return $this->evaluation_type === 'kpsp_re_evaluation_2_weeks' || $this->parent_session_id !== null;
     }
 
     /**
@@ -97,6 +134,14 @@ class ScreeningSession extends Model
     public function srqScreening(): HasOne
     {
         return $this->hasOne(SrqScreening::class);
+    }
+
+    /**
+     * Get the clinical interpretations recorded by the doctor.
+     */
+    public function screeningInterpretations(): HasMany
+    {
+        return $this->hasMany(ScreeningInterpretation::class);
     }
 
     /**

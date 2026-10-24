@@ -111,6 +111,11 @@ class SrqScreeningController extends Controller
                 [
                     'answers' => $answers,
                     'score' => $result->scores['total'],
+                    'depression_score' => $result->scores['depression'],
+                    'anxiety_score' => $result->scores['anxiety'],
+                    'somatic_score' => $result->scores['somatic'],
+                    'cognitive_score' => $result->scores['cognitive'],
+                    'energy_score' => $result->scores['energy'],
                     'category' => $result->categories['overall'],
                     'recommendation' => null,
                 ]
