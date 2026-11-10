@@ -41,6 +41,9 @@ RUN apk add --no-cache libpq icu-libs libzip \
     && apk del .build-deps
 
 COPY docker/production/php.ini /usr/local/etc/php/conf.d/zz-app.ini
+COPY docker/production/php-fpm-port.conf /usr/local/etc/php-fpm.d/zzz-port.conf
+# Port PHP-FPM (backend). Diatur dari docker-compose (mis. 8817 / 8809)
+ENV FPM_PORT=9000
 
 WORKDIR /var/www/html
 
@@ -57,7 +60,7 @@ RUN sed -i 's/\r$//' /usr/local/bin/entrypoint \
     && chown -R www-data:www-data storage bootstrap/cache
 
 USER www-data
-EXPOSE 9000
+EXPOSE ${FPM_PORT}
 ENTRYPOINT ["entrypoint"]
 CMD ["php-fpm"]
 
