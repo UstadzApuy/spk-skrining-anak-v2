@@ -99,6 +99,21 @@ return [
             'sslmode' => env('DB_SSLMODE', 'prefer'),
         ],
 
+        // Database SILKABK (sistem utama) — dibaca untuk sinkron user & pasien
+        'silkabk' => [
+            'driver' => 'pgsql',
+            'host' => env('SILKABK_DB_HOST', env('DB_HOST', '127.0.0.1')),
+            'port' => env('SILKABK_DB_PORT', env('DB_PORT', '5432')),
+            'database' => env('SILKABK_DB_DATABASE', 'ta_bismillah'),
+            'username' => env('SILKABK_DB_USERNAME', env('DB_USERNAME', 'postgres')),
+            'password' => env('SILKABK_DB_PASSWORD', env('DB_PASSWORD', '')),
+            'charset' => 'utf8',
+            'prefix' => '',
+            'prefix_indexes' => true,
+            'search_path' => 'public',
+            'sslmode' => 'prefer',
+        ],
+
         'sqlsrv' => [
             'driver' => 'sqlsrv',
             'url' => env('DB_URL'),

@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Auth\LoginController;
+use App\Http\Controllers\Auth\SilkabkSsoController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\GpphScreeningController;
 use App\Http\Controllers\KpspScreeningController;
@@ -13,6 +14,11 @@ use App\Http\Controllers\SdqScreeningController;
 use App\Http\Controllers\SrqScreeningController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
+
+// Login otomatis dari SILKABK (token sekali pakai)
+Route::get('/sso/silkabk', SilkabkSsoController::class)
+    ->middleware('throttle:20,1')
+    ->name('sso.silkabk');
 
 Route::middleware('guest')->group(function () {
     Route::get('/login', [LoginController::class, 'create'])

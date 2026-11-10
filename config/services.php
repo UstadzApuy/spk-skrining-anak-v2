@@ -35,4 +35,11 @@ return [
         ],
     ],
 
+
+    // Integrasi dengan SILKABK (login otomatis / SSO)
+    'silkabk' => [
+        'url' => env('SILKABK_URL', 'http://127.0.0.1:8000'),
+        'sso_secret' => env('SILKABK_SSO_SECRET'),
+    ],
+
 ];
