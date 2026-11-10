@@ -25,3 +25,13 @@ Thumbs.db
 
 # Local database backup; never commit
 /docs/Backup3.sql
+
+# File env lain (.env.local, .env.testing, dll.) diabaikan,
+# tapi .env.example BOLEH ikut ke repo
+.env.*
+!.env.example
+
+# Backup database (.sql/.backup/.dump) BOLEH ikut ke repo
+
+# Setelan lokal Claude Code
+/.claude/
