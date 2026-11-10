@@ -177,7 +177,7 @@ function getInitials(name) {
 
 function statusLabel(status) {
     const labels = {
-        draft: 'Draft',
+        draft: 'Draf',
         in_progress: 'Sedang Berlangsung',
         pending_parent: 'Menunggu Orang Tua',
         pending_doctor_review: 'Menunggu Dokter',
@@ -582,7 +582,7 @@ function sessionHasAlert(session) {
                             class="inline-flex items-center gap-1 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50 dark:bg-rose-950/40 px-3 py-2 text-xs font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100 transition cursor-pointer"
                             title="Bersihkan semua filter"
                         >
-                            <span>✕ Reset</span>
+                            <span>✕ Atur Ulang</span>
                         </button>
                     </div>
                 </div>
@@ -642,7 +642,7 @@ function sessionHasAlert(session) {
                         <span class="rounded-full bg-white/20 dark:bg-black/20 px-1.5 py-0.2 text-3xs font-black">{{ statusCounts.in_progress ?? 0 }}</span>
                     </button>
 
-                    <!-- Draft -->
+                    <!-- Draf -->
                     <button
                         type="button"
                         @click="setStatusFilter('draft')"
@@ -651,7 +651,7 @@ function sessionHasAlert(session) {
                             ? 'bg-gray-700 text-white shadow-xs'
                             : 'bg-gray-100 dark:bg-white/5 text-gray-700 dark:text-gray-400 hover:bg-gray-200 border border-gray-200 dark:border-white/10'"
                     >
-                        <span>Draft</span>
+                        <span>Draf</span>
                         <span class="rounded-full bg-white/20 dark:bg-black/20 px-1.5 py-0.2 text-3xs font-black">{{ statusCounts.draft ?? 0 }}</span>
                     </button>
                 </div>

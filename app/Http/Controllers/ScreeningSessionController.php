@@ -268,6 +268,16 @@ class ScreeningSessionController extends Controller
                     'SRQ',
                 ]),
             ],
+            'case_type' => [
+                'nullable',
+                'string',
+                Rule::in(['baru', 'lama']),
+            ],
+            'referral_source' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
         ];
 
         if ($isDoctor) {
@@ -394,6 +404,9 @@ class ScreeningSessionController extends Controller
             $ageResult,
             $creatorId
         ): ScreeningSession {
+            $hasPreviousSession = ScreeningSession::where('patient_id', $validated['patient_id'])->exists();
+            $caseType = $validated['case_type'] ?? ($hasPreviousSession ? 'lama' : 'baru');
+
             $session = new ScreeningSession([
                 'patient_id' => $validated['patient_id'],
                 'nurse_id' => $nurseId,
@@ -401,6 +414,9 @@ class ScreeningSessionController extends Controller
                 'screening_date' => $validated['screening_date'],
                 'status' => 'draft',
                 'notes' => $validated['notes'] ?? null,
+                'case_type' => $caseType,
+                'referral_source' => $validated['referral_source'] ?? null,
+                'interventions' => [],
             ]);
 
             $session->created_by_user_id = $creatorId;
@@ -537,5 +553,32 @@ class ScreeningSessionController extends Controller
         return redirect()
             ->route('screening-sessions.show', $newSession)
             ->with('success', "Sesi evaluasi ulang KPSP 2 minggu berhasil dijadwalkan (Target: {$targetDate->format('d/m/Y')}).");
+    }
+
+    /**
+     * Update health services / interventions and referral target for the screening session.
+     */
+    public function updateInterventions(Request $request, ScreeningSession $screeningSession): RedirectResponse
+    {
+        $validated = $request->validate([
+            'interventions' => ['nullable', 'array'],
+            'interventions.*' => ['string', Rule::in([
+                'psikolog', 'aba', 'ot', 'tw', 'si', 'fisioterapi', 'perawatan_medis', 'konseling', 'rehabilitasi', 'rujukan'
+            ])],
+            'referral_target' => ['nullable', 'string', 'max:150'],
+            'case_type' => ['nullable', 'string', Rule::in(['baru', 'lama'])],
+            'referral_source' => ['nullable', 'string', 'max:150'],
+            'recap_notes' => ['nullable', 'string', 'max:1000'],
+        ]);
+
+        $screeningSession->update([
+            'interventions' => $validated['interventions'] ?? [],
+            'referral_target' => $validated['referral_target'] ?? null,
+            'case_type' => $validated['case_type'] ?? $screeningSession->case_type,
+            'referral_source' => $validated['referral_source'] ?? $screeningSession->referral_source,
+            'recap_notes' => $validated['recap_notes'] ?? $screeningSession->recap_notes,
+        ]);
+
+        return back()->with('success', 'Layanan intervensi dan rujukan sesi berhasil diperbarui.');
     }
 }

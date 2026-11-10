@@ -29,7 +29,8 @@ Route::middleware('auth')->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])
         ->name('dashboard');
 
-    Route::middleware('role:perawat')->group(function () {
+    // Akses Manajemen Pasien & Wali: Perawat, Dokter, Administrator (CRU)
+    Route::middleware('role:perawat,dokter,administrator')->group(function () {
         Route::get('/patients', [PatientController::class, 'index'])
             ->name('patients.index');
 
@@ -45,6 +46,20 @@ Route::middleware('auth')->group(function () {
         Route::put('/patients/{patient}', [PatientController::class, 'update'])
             ->name('patients.update');
 
+        Route::post('/parent-guardians', [PatientController::class, 'storeParentGuardian'])
+            ->name('parent-guardians.store');
+    });
+
+    Route::middleware('role:perawat,dokter')->group(function () {
+        Route::patch(
+            '/screening-sessions/{screeningSession}/interventions',
+            [ScreeningSessionController::class, 'updateInterventions']
+        )->whereNumber('screeningSession')
+            ->name('screening-sessions.interventions.update');
+    });
+
+    Route::middleware('role:perawat')->group(function () {
+
         Route::get('/screening-sessions/create', [
             ScreeningSessionController::class,
             'create',
@@ -54,31 +69,6 @@ Route::middleware('auth')->group(function () {
             ScreeningSessionController::class,
             'store',
         ])->name('screening-sessions.store');
-
-        Route::get(
-            '/screening-sessions/{screeningSession}/sdq',
-            [SdqScreeningController::class, 'create']
-        )->name('screening-sessions.sdq.create');
-
-        Route::post(
-            '/screening-sessions/{screeningSession}/sdq',
-            [SdqScreeningController::class, 'store']
-        )->name('screening-sessions.sdq.store');
-
-        Route::get(
-            '/screening-sessions/{screeningSession}/srq',
-            [SrqScreeningController::class, 'create']
-        )->name('screening-sessions.srq.create');
-
-        Route::post(
-            '/screening-sessions/{screeningSession}/srq',
-            [SrqScreeningController::class, 'store']
-        )->name('screening-sessions.srq.store');
-
-        Route::get(
-            '/screening-sessions/{screeningSession}/srq/complete',
-            [SrqScreeningController::class, 'complete']
-        )->name('screening-sessions.srq.complete');
 
         Route::get(
             '/screening-sessions/{screeningSession}/kpsp',
@@ -116,6 +106,33 @@ Route::middleware('auth')->group(function () {
         )->name('screening-sessions.gpph.store');
     });
 
+    Route::middleware('role:perawat,orang_tua')->group(function () {
+        Route::get(
+            '/screening-sessions/{screeningSession}/sdq',
+            [SdqScreeningController::class, 'create']
+        )->name('screening-sessions.sdq.create');
+
+        Route::post(
+            '/screening-sessions/{screeningSession}/sdq',
+            [SdqScreeningController::class, 'store']
+        )->name('screening-sessions.sdq.store');
+
+        Route::get(
+            '/screening-sessions/{screeningSession}/srq',
+            [SrqScreeningController::class, 'create']
+        )->name('screening-sessions.srq.create');
+
+        Route::post(
+            '/screening-sessions/{screeningSession}/srq',
+            [SrqScreeningController::class, 'store']
+        )->name('screening-sessions.srq.store');
+
+        Route::get(
+            '/screening-sessions/{screeningSession}/srq/complete',
+            [SrqScreeningController::class, 'complete']
+        )->name('screening-sessions.srq.complete');
+    });
+
     Route::middleware('role:perawat,dokter')->group(function () {
         Route::get('/screening-sessions', [
             ScreeningSessionController::class,
@@ -134,6 +151,11 @@ Route::middleware('auth')->group(function () {
             ScreeningRecapController::class,
             'index',
         ])->name('screening-recap.index');
+
+        Route::get('/rekapitulasi/export', [
+            ScreeningRecapController::class,
+            'export',
+        ])->name('screening-recap.export');
     });
 
     Route::middleware('role:dokter')->group(function () {
@@ -152,6 +174,12 @@ Route::middleware('auth')->group(function () {
             [ScreeningSessionController::class, 'destroy']
         )->whereNumber('screeningSession')
             ->name('screening-sessions.destroy');
+
+        Route::delete(
+            '/patients/{patient}',
+            [PatientController::class, 'destroy']
+        )->whereNumber('patient')
+            ->name('patients.destroy');
     });
 });
 

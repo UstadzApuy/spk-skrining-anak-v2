@@ -30,6 +30,11 @@ class ScreeningSession extends Model
         'doctor_notes',
         'reviewed_at',
         'created_by_user_id',
+        'case_type',
+        'referral_source',
+        'referral_target',
+        'interventions',
+        'recap_notes',
     ];
 
     /**
@@ -155,6 +160,7 @@ class ScreeningSession extends Model
             'screening_date' => 'date',
             'age_months' => 'integer',
             'reviewed_at' => 'datetime',
+            'interventions' => 'array',
         ];
     }
 }

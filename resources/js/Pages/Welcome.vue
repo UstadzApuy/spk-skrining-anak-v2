@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, usePage } from '@inertiajs/vue3';
 import { useTheme } from '@/Composables/useTheme';
+import TestingGuide from '@/Components/TestingGuide.vue';
 
 const page = usePage();
 const authUser = page.props.auth?.user;
@@ -58,7 +59,7 @@ const instruments = [
                     </div>
                     <div>
                         <h1 class="text-base font-extrabold text-navy dark:text-white leading-tight">
-                            ClinicalInsight DSS
+                            SPK ClinicalInsight
                         </h1>
                         <p class="text-2xs font-bold text-teal dark:text-teal-light">
                             UPTD Balai Layanan Kesehatan Anak Berkebutuhan Khusus &bull; Kota Balikpapan
@@ -131,7 +132,7 @@ const instruments = [
                             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1" />
                             </svg>
-                            Masuk ke Sistem (Login)
+                            Masuk ke Sistem
                         </Link>
                     </div>
                 </div>
@@ -140,7 +141,7 @@ const instruments = [
             <!-- Demo Accounts Card -->
             <div class="rounded-2xl bg-white dark:bg-[#0C2038] p-6 shadow-xs border border-sand/40 dark:border-white/10 max-w-3xl mx-auto transition-colors">
                 <h3 class="text-xs font-extrabold uppercase tracking-wider text-earth dark:text-ochre-light text-center mb-4">
-                    Akun Uji Coba Tersedia (Password: <code class="text-teal dark:text-teal-light font-bold">password</code>)
+                    Akun Uji Coba Tersedia (Kata Sandi: <code class="text-teal dark:text-teal-light font-bold">password</code>)
                 </h3>
 
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -207,6 +208,8 @@ const instruments = [
         <footer class="border-t border-sand/30 dark:border-white/10 bg-white dark:bg-[#071D37]/90 py-6 text-center text-xs text-gray-500 dark:text-gray-400 transition-colors">
             UPTD Balai Layanan Kesehatan Anak Berkebutuhan Khusus Kota Balikpapan &bull; SPK Skrining Tumbuh Kembang &copy; 2026.
         </footer>
+
+        <TestingGuide />
     </div>
 </template>
 

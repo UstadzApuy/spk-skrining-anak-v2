@@ -18,6 +18,8 @@ const instrumentsList = [
     {
         code: 'KPSP',
         name: 'KPSP',
+        category: 'routine',
+        categoryLabel: 'Pemeriksaan Rutin Sesuai Jadwal',
         title: 'Kuesioner Pra Skrining Perkembangan',
         description: 'Deteksi dini 4 sektor perkembangan: gerak kasar, gerak halus, bicara-bahasa, sosialisasi & kemandirian.',
         ageRange: '3 – 72 Bulan',
@@ -26,6 +28,8 @@ const instrumentsList = [
     {
         code: 'MCHAT',
         name: 'M-CHAT-R',
+        category: 'indication',
+        categoryLabel: 'Pemeriksaan Atas Indikasi',
         title: 'Modified Checklist for Autism in Toddlers, Revised',
         description: 'Skrining risiko gangguan spektrum autisme (ASD) pada balita.',
         ageRange: '16 – 30 Bulan',
@@ -34,6 +38,8 @@ const instrumentsList = [
     {
         code: 'GPPH',
         name: 'GPPH / ACTRS',
+        category: 'indication',
+        categoryLabel: 'Pemeriksaan Atas Indikasi',
         title: 'Abbreviated Conners Teacher Rating Scale',
         description: 'Deteksi dini gangguan pemusatan perhatian dan hiperaktivitas pada anak prasekolah.',
         ageRange: '36 – 72 Bulan (3–6 Tahun)',
@@ -42,6 +48,8 @@ const instrumentsList = [
     {
         code: 'SDQ',
         name: 'SDQ',
+        category: 'indication',
+        categoryLabel: 'Pemeriksaan Atas Indikasi',
         title: 'Strengths and Difficulties Questionnaire',
         description: 'Skrining masalah perilaku, emosi, hiperaktivitas, hubungan teman sebaya, dan prososial.',
         ageRange: '4 – 11 Tahun (48–131 Bulan)',
@@ -50,6 +58,8 @@ const instrumentsList = [
     {
         code: 'SRQ',
         name: 'SRQ-20',
+        category: 'indication',
+        categoryLabel: 'Pemeriksaan Atas Indikasi',
         title: 'Self Reporting Questionnaire',
         description: 'Penilaian kesehatan mental dan tingkat stres orang tua/pengasuh yang mendampingi anak.',
         ageRange: 'Semua Usia Anak',
@@ -57,11 +67,27 @@ const instrumentsList = [
     },
 ];
 
+const routineInstruments = computed(() => instrumentsList.filter(i => i.category === 'routine'));
+const indicationInstruments = computed(() => instrumentsList.filter(i => i.category === 'indication'));
+
 const form = useForm({
     patient_id: props.preselectedPatientId ? String(props.preselectedPatientId) : '',
     screening_date: new Date().toISOString().slice(0, 10),
     instruments: ['KPSP'],
+    case_type: 'baru',
+    referral_source: '',
     notes: '',
+});
+
+// Update otomatis case_type saat pasien dipilih
+watch(selectedPatient, (p) => {
+    if (p) {
+        if (p.sessions_count > 0) {
+            form.case_type = 'lama';
+        } else {
+            form.case_type = 'baru';
+        }
+    }
 });
 
 function calculateAgeMonths(birthDate, screeningDate) {
@@ -217,7 +243,7 @@ const submit = () => {
                     href="/dashboard"
                     class="inline-flex items-center gap-1.5 text-gray-500 hover:text-navy transition"
                 >
-                    Patient Directory (Dashboard)
+                    Daftar Pasien (Dashboard)
                 </Link>
             </div>
 
@@ -278,7 +304,62 @@ const submit = () => {
                         </div>
                     </div>
 
-                    <!-- Selected Patient Card -->
+                    <div class="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                        <!-- Jenis Kasus (Baru / Lama) -->
+                        <div>
+                            <label class="block text-sm font-bold text-navy mb-1.5">
+                                Status Kasus Kunjungan <span class="text-rose-600">*</span>
+                            </label>
+                            <div class="grid grid-cols-2 gap-2">
+                                <label
+                                    class="flex items-center gap-2 rounded-xl border p-2.5 cursor-pointer text-xs font-bold transition"
+                                    :class="form.case_type === 'baru' ? 'border-teal bg-teal/10 text-teal' : 'border-sand/60 bg-white text-navy hover:bg-sand-light'"
+                                >
+                                    <input
+                                        type="radio"
+                                        v-model="form.case_type"
+                                        value="baru"
+                                        class="text-teal focus:ring-teal"
+                                    />
+                                    <span>Kasus Baru</span>
+                                </label>
+
+                                <label
+                                    class="flex items-center gap-2 rounded-xl border p-2.5 cursor-pointer text-xs font-bold transition"
+                                    :class="form.case_type === 'lama' ? 'border-teal bg-teal/10 text-teal' : 'border-sand/60 bg-white text-navy hover:bg-sand-light'"
+                                >
+                                    <input
+                                        type="radio"
+                                        v-model="form.case_type"
+                                        value="lama"
+                                        class="text-teal focus:ring-teal"
+                                    />
+                                    <span>Kasus Lama</span>
+                                </label>
+                            </div>
+                            <p class="mt-1 text-3xs text-gray-400">
+                                Mengisi kolom Kasus Baru (kolom 5) atau Lama (kolom 6) di Rekapitulasi SDIDTK.
+                            </p>
+                        </div>
+
+                        <!-- Rujukan Dari -->
+                        <div>
+                            <label for="referral_source" class="block text-sm font-bold text-navy mb-1.5">
+                                Rujukan Dari (Asal Pasien)
+                            </label>
+                            <input
+                                id="referral_source"
+                                v-model="form.referral_source"
+                                type="text"
+                                maxlength="150"
+                                placeholder="Contoh: Datang Sendiri, Puskesmas Damai, PAUD Melati"
+                                class="w-full rounded-xl border border-sand/60 text-sm shadow-2xs focus:border-teal focus:ring-1 focus:ring-teal"
+                            />
+                            <p class="mt-1 text-3xs text-gray-400">
+                                Mengisi kolom Rujukan Dari (kolom 7) di Rekapitulasi SDIDTK.
+                            </p>
+                        </div>
+                    </div>
                     <div
                         v-if="selectedPatient"
                         class="rounded-xl bg-[#FAF7F0] border border-sand/40 p-4"
@@ -343,53 +424,128 @@ const submit = () => {
                         Sistem memverifikasi kelayakan usia secara otomatis. Instrumen yang tidak memenuhi rentang usia anak akan dinonaktifkan sesuai pedoman klinis Kemenkes RI.
                     </p>
 
-                    <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                        <div
-                            v-for="inst in instrumentsList"
-                            :key="inst.code"
-                            class="relative flex flex-col justify-between rounded-2xl border p-4 transition"
-                            :class="[
-                                isInstrumentAllowed(inst.code)
-                                    ? form.instruments.includes(inst.code)
-                                        ? 'border-teal bg-teal/5 ring-2 ring-teal/30'
-                                        : 'border-sand/40 bg-white hover:border-teal/60 hover:bg-sand-light/30 cursor-pointer'
-                                    : 'border-sand/20 bg-slate-50 opacity-60 cursor-not-allowed'
-                            ]"
-                            @click="toggleInstrument(inst.code)"
-                        >
-                            <div class="flex items-start gap-3">
-                                <input
-                                    type="checkbox"
-                                    :checked="form.instruments.includes(inst.code)"
-                                    :disabled="!isInstrumentAllowed(inst.code)"
-                                    class="mt-1 rounded border-sand/60 text-teal focus:ring-teal disabled:cursor-not-allowed"
-                                    @click.stop
-                                    @change="toggleInstrument(inst.code)"
-                                />
-                                <div class="flex-1">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <span class="font-extrabold text-navy text-sm">
-                                            {{ inst.name }}
-                                        </span>
-                                        <span class="rounded-full bg-sand-light px-2 py-0.5 text-3xs font-bold text-navy border border-sand/30">
-                                            {{ inst.ageRange }}
-                                        </span>
+                    <!-- Kategori III: Pemeriksaan Rutin Sesuai Jadwal -->
+                    <div class="space-y-2.5">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex h-5 items-center rounded-md bg-emerald-100 px-2 text-2xs font-extrabold uppercase text-emerald-800 border border-emerald-300">
+                                Kategori III
+                            </span>
+                            <h4 class="text-xs font-extrabold text-navy uppercase tracking-wider">
+                                Pemeriksaan Rutin Sesuai Jadwal
+                            </h4>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                            <div
+                                v-for="inst in routineInstruments"
+                                :key="inst.code"
+                                class="relative flex flex-col justify-between rounded-2xl border p-4 transition"
+                                :class="[
+                                    isInstrumentAllowed(inst.code)
+                                        ? form.instruments.includes(inst.code)
+                                            ? 'border-teal bg-teal/5 ring-2 ring-teal/30'
+                                            : 'border-sand/40 bg-white hover:border-teal/60 hover:bg-sand-light/30 cursor-pointer'
+                                        : 'border-sand/20 bg-slate-50 opacity-60 cursor-not-allowed'
+                                ]"
+                                @click="toggleInstrument(inst.code)"
+                            >
+                                <div class="flex items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        :checked="form.instruments.includes(inst.code)"
+                                        :disabled="!isInstrumentAllowed(inst.code)"
+                                        class="mt-1 rounded border-sand/60 text-teal focus:ring-teal disabled:cursor-not-allowed"
+                                        @click.stop
+                                        @change="toggleInstrument(inst.code)"
+                                    />
+                                    <div class="flex-1">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="font-extrabold text-navy text-sm">
+                                                {{ inst.name }}
+                                            </span>
+                                            <span class="rounded-full bg-sand-light px-2 py-0.5 text-3xs font-bold text-navy border border-sand/30">
+                                                {{ inst.ageRange }}
+                                            </span>
+                                        </div>
+                                        <p class="text-xs font-bold text-teal mt-0.5">
+                                            {{ inst.title }}
+                                        </p>
+                                        <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                                            {{ inst.description }}
+                                        </p>
                                     </div>
-                                    <p class="text-xs font-bold text-teal mt-0.5">
-                                        {{ inst.title }}
-                                    </p>
-                                    <p class="text-xs text-gray-500 mt-1 leading-relaxed">
-                                        {{ inst.description }}
-                                    </p>
+                                </div>
+
+                                <!-- Ineligible reason callout -->
+                                <div
+                                    v-if="!isInstrumentAllowed(inst.code)"
+                                    class="mt-3 rounded-xl bg-ochre/10 p-2.5 text-2xs font-semibold text-earth border border-ochre/20"
+                                >
+                                    <span>{{ getInstrumentIneligibilityReason(inst.code) }}</span>
                                 </div>
                             </div>
+                        </div>
+                    </div>
 
-                            <!-- Ineligible reason callout -->
+                    <!-- Kategori IV: Pemeriksaan Atas Indikasi -->
+                    <div class="space-y-2.5 pt-2">
+                        <div class="flex items-center gap-2">
+                            <span class="inline-flex h-5 items-center rounded-md bg-amber-100 px-2 text-2xs font-extrabold uppercase text-amber-800 border border-amber-300">
+                                Kategori IV
+                            </span>
+                            <h4 class="text-xs font-extrabold text-navy uppercase tracking-wider">
+                                Pemeriksaan Atas Indikasi
+                            </h4>
+                        </div>
+
+                        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2">
                             <div
-                                v-if="!isInstrumentAllowed(inst.code)"
-                                class="mt-3 rounded-xl bg-ochre/10 p-2.5 text-2xs font-semibold text-earth border border-ochre/20"
+                                v-for="inst in indicationInstruments"
+                                :key="inst.code"
+                                class="relative flex flex-col justify-between rounded-2xl border p-4 transition"
+                                :class="[
+                                    isInstrumentAllowed(inst.code)
+                                        ? form.instruments.includes(inst.code)
+                                            ? 'border-teal bg-teal/5 ring-2 ring-teal/30'
+                                            : 'border-sand/40 bg-white hover:border-teal/60 hover:bg-sand-light/30 cursor-pointer'
+                                        : 'border-sand/20 bg-slate-50 opacity-60 cursor-not-allowed'
+                                ]"
+                                @click="toggleInstrument(inst.code)"
                             >
-                                <span>{{ getInstrumentIneligibilityReason(inst.code) }}</span>
+                                <div class="flex items-start gap-3">
+                                    <input
+                                        type="checkbox"
+                                        :checked="form.instruments.includes(inst.code)"
+                                        :disabled="!isInstrumentAllowed(inst.code)"
+                                        class="mt-1 rounded border-sand/60 text-teal focus:ring-teal disabled:cursor-not-allowed"
+                                        @click.stop
+                                        @change="toggleInstrument(inst.code)"
+                                    />
+                                    <div class="flex-1">
+                                        <div class="flex items-center justify-between gap-2">
+                                            <span class="font-extrabold text-navy text-sm">
+                                                {{ inst.name }}
+                                            </span>
+                                            <span class="rounded-full bg-sand-light px-2 py-0.5 text-3xs font-bold text-navy border border-sand/30">
+                                                {{ inst.ageRange }}
+                                            </span>
+                                        </div>
+                                        <p class="text-xs font-bold text-teal mt-0.5">
+                                            {{ inst.title }}
+                                        </p>
+                                        <p class="text-xs text-gray-500 mt-1 leading-relaxed">
+                                            {{ inst.description }}
+                                        </p>
+                                    </div>
+                                </div>
+
+                                <!-- Ineligible reason callout -->
+                                <div
+                                    v-if="!isInstrumentAllowed(inst.code)"
+                                    class="mt-3 rounded-xl bg-ochre/10 p-2.5 text-2xs font-semibold text-earth border border-ochre/20"
+                                >
+                                    <span>{{ getInstrumentIneligibilityReason(inst.code) }}</span>
+                                </div>
                             </div>
                         </div>
                     </div>

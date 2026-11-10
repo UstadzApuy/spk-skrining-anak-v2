@@ -38,119 +38,209 @@ class ScreeningSessionSeeder extends Seeder
 
         $today = CarbonImmutable::today();
 
-        $patients = Patient::query()->orderBy('birth_date', 'desc')->get();
+        // 1. Seed seluruh 176 sesi register bulan Oktober 2026 dari register resmi UPTD BLK-ABK
+        $this->seedUptdOctoberSessions($nurse, $doctor);
 
-        foreach ($patients as $patient) {
-            $ageMonths = (int) $patient->birth_date->diffInMonths($today);
-            $eligibleInstruments = $this->getEligibleInstruments($ageMonths);
-            $kpspFormAge = $this->getKpspFormAge($ageMonths);
+        // 2. Siapkan sesi uji aktif untuk skenario testing peran (Perawat, Orang Tua, Dokter)
+        //    menggunakan pasien anak asli UPTD (RM-002, RM-003, RM-005)
+        $this->seedActiveTestingSessions($nurse, $doctor, $today);
+    }
 
-            // ---------------------------------------------------------
-            // SESI 1: Kunjungan Awal — Normal / Sesuai Umur
-            // Status: reviewed (Selesai Ditinjau Dokter)
-            // Tanggal: 14 hari yang lalu
-            // ---------------------------------------------------------
-            $date1 = $today->subDays(14);
-            $s1 = ScreeningSession::create([
+    /**
+     * Muat dan generate 176 sesi register bulan Oktober 2026 dari data UPTD BLK-ABK
+     * lengkap dengan instrumen KPSP 4 domain, M-CHAT-R, GPPH, serta dummy SDQ dan SRQ-20.
+     */
+    private function seedUptdOctoberSessions(Nurse $nurse, Doctor $doctor): void
+    {
+        $jsonPath = database_path('seeders/uptd_october_data.json');
+        if (! file_exists($jsonPath)) {
+            return;
+        }
+
+        $uptdRecords = json_decode(file_get_contents($jsonPath), true);
+        if (! is_array($uptdRecords)) {
+            return;
+        }
+
+        foreach ($uptdRecords as $idx => $rec) {
+            $mrn = sprintf('RM-%03d', $idx + 1);
+            $patient = Patient::where('medical_record_number', $mrn)->first();
+            if (! $patient) {
+                continue;
+            }
+
+            // Sebarkan tanggal pemeriksaan secara berurutan sesuai nomor urut register Excel (1 s/d 30 Oktober 2026)
+            $day = min(30, 1 + (int) floor(($idx * 29) / count($uptdRecords)));
+            $dateStr = sprintf('2026-10-%02d', $day);
+            $screeningDate = CarbonImmutable::parse($dateStr);
+
+            $session = ScreeningSession::create([
                 'patient_id' => $patient->id,
                 'nurse_id' => $nurse->id,
                 'doctor_id' => $doctor->id,
                 'created_by_user_id' => $nurse->user_id,
-                'screening_date' => $date1->toDateString(),
-                'age_months' => $ageMonths,
+                'screening_date' => $screeningDate->toDateString(),
+                'age_months' => $rec['age_months'] ?? 36,
+                'case_type' => $rec['case_type'] ?? 'lama',
+                'referral_source' => $rec['referral_from'],
+                'referral_target' => $rec['rujukan_ke'],
+                'interventions' => $rec['interventions'] ?? [],
+                'recap_notes' => $rec['school_name'],
                 'status' => 'reviewed',
-                'notes' => 'Pemeriksaan skrining awal berkala (Kunjungan 1) - Hasil Normal / Sesuai Umur.',
-                'doctor_notes' => "Pemeriksaan skrining berkala ke-1 untuk {$patient->name}. Seluruh aspek tumbuh kembang anak dalam batas normal sesuai usia.",
-                'reviewed_at' => $date1->addHours(2),
+                'notes' => 'Pemeriksaan register SDIDTK UPTD BLK-ABK Balikpapan bulan Oktober 2026.',
+                'doctor_notes' => 'Hasil evaluasi klinis dan program intervensi disetujui dokter.',
+                'reviewed_at' => $screeningDate->addHours(3),
             ]);
 
-            foreach ($eligibleInstruments as $code) {
-                ScreeningSessionInstrument::create([
-                    'screening_session_id' => $s1->id,
-                    'instrument_code' => $code,
-                    'status' => 'completed',
-                    'started_at' => $date1->subHours(2),
-                    'completed_at' => $date1->subHours(1),
-                ]);
+            // KPSP (4 Domain Perkembangan)
+            $hasKpspDeficit = $rec['kpsp_kasar'] || $rec['kpsp_halus'] || $rec['kpsp_bicara'] || $rec['kpsp_sosialisasi'];
+            $kpspCategory = $hasKpspDeficit ? 'meragukan' : 'sesuai_umur';
+            $kpspScore = $hasKpspDeficit ? 8 : 10;
 
-                $this->seedInstrumentResult($s1->id, $code, 'normal', $kpspFormAge, $patient->name);
+            $lackingDomains = [];
+            if ($rec['kpsp_kasar']) $lackingDomains[] = 'Gerak Kasar';
+            if ($rec['kpsp_halus']) $lackingDomains[] = 'Gerak Halus';
+            if ($rec['kpsp_bicara']) $lackingDomains[] = 'Bicara dan Bahasa';
+            if ($rec['kpsp_sosialisasi']) $lackingDomains[] = 'Sosialisasi dan Kemandirian';
 
-                ScreeningInterpretation::create([
-                    'screening_session_id' => $s1->id,
-                    'instrument_code' => $code,
-                    'doctor_id' => $doctor->id,
-                    'clinical_notes' => "Hasil skrining {$code} berada dalam batas normal. Pertumbuhan dan perkembangan anak terpantau baik.",
-                    'follow_up_decision' => 'konseling_stimulasi',
-                    'follow_up_notes' => 'Lanjutkan stimulasi rutin di rumah dan jadwalkan skrining berkala berikutnya.',
-                    'status' => 'completed',
-                    'completed_at' => $date1->addHours(2),
-                ]);
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $session->id,
+                'instrument_code' => 'KPSP',
+                'status' => 'completed',
+                'started_at' => $screeningDate->subHour(),
+                'completed_at' => $screeningDate->subMinutes(30),
+            ]);
+
+            KpspScreening::create([
+                'screening_session_id' => $session->id,
+                'form_age_months' => $this->getKpspFormAge((int) ($rec['age_months'] ?? 36)) ?? 72,
+                'answers' => array_fill(0, 10, true),
+                'score' => $kpspScore,
+                'category' => $kpspCategory,
+                'recommendation' => $hasKpspDeficit ? 'Lakukan stimulasi terarah pada domain yang mengalami hambatan.' : 'Perkembangan sesuai umur.',
+                'domain_scores' => [
+                    'domains' => [
+                        'gerak_kasar' => ['key' => 'gerak_kasar', 'name' => 'Gerak Kasar', 'score' => $rec['kpsp_kasar'] ? 1 : 3, 'total' => 3, 'percentage' => $rec['kpsp_kasar'] ? 33 : 100, 'status' => $rec['kpsp_kasar'] ? 'meragukan' : 'sesuai'],
+                        'gerak_halus' => ['key' => 'gerak_halus', 'name' => 'Gerak Halus', 'score' => $rec['kpsp_halus'] ? 1 : 2, 'total' => 2, 'percentage' => $rec['kpsp_halus'] ? 50 : 100, 'status' => $rec['kpsp_halus'] ? 'meragukan' : 'sesuai'],
+                        'bicara_bahasa' => ['key' => 'bicara_bahasa', 'name' => 'Bicara dan Bahasa', 'score' => $rec['kpsp_bicara'] ? 1 : 2, 'total' => 2, 'percentage' => $rec['kpsp_bicara'] ? 50 : 100, 'status' => $rec['kpsp_bicara'] ? 'meragukan' : 'sesuai'],
+                        'sosialisasi_kemandirian' => ['key' => 'sosialisasi_kemandirian', 'name' => 'Sosialisasi dan Kemandirian', 'score' => $rec['kpsp_sosialisasi'] ? 1 : 3, 'total' => 3, 'percentage' => $rec['kpsp_sosialisasi'] ? 33 : 100, 'status' => $rec['kpsp_sosialisasi'] ? 'meragukan' : 'sesuai'],
+                    ],
+                    'lacking_domains' => $lackingDomains,
+                    'optimal_domains' => array_values(array_diff(['Gerak Kasar', 'Gerak Halus', 'Bicara dan Bahasa', 'Sosialisasi dan Kemandirian'], $lackingDomains)),
+                    'all_optimal' => empty($lackingDomains),
+                ],
+            ]);
+
+            // M-CHAT-R (Autis)
+            $mchatCategory = $rec['mchat'] ? 'risiko_sedang_tinggi' : 'risiko_rendah';
+            $mchatScore = $rec['mchat'] ? 5 : 1;
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $session->id,
+                'instrument_code' => 'MCHAT',
+                'status' => 'completed',
+                'started_at' => $screeningDate->subHour(),
+                'completed_at' => $screeningDate->subMinutes(30),
+            ]);
+            MchatScreening::create([
+                'screening_session_id' => $session->id,
+                'answers' => array_fill(0, 20, false),
+                'score' => $mchatScore,
+                'category' => $mchatCategory,
+                'recommendation' => $rec['mchat'] ? 'Rujuk untuk evaluasi komprehensif spektrum autisme.' : 'Risiko rendah autisme.',
+            ]);
+
+            // GPPH (Hiperaktivitas)
+            $gpphCategory = $rec['gpph'] ? 'kemungkinan_gpph' : 'normal';
+            $gpphScore = $rec['gpph'] ? 14 : 4;
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $session->id,
+                'instrument_code' => 'GPPH',
+                'status' => 'completed',
+                'started_at' => $screeningDate->subHour(),
+                'completed_at' => $screeningDate->subMinutes(30),
+            ]);
+            GpphScreening::create([
+                'screening_session_id' => $session->id,
+                'answers' => array_fill(0, 10, $rec['gpph'] ? 2 : 0),
+                'score' => $gpphScore,
+                'examiner_doubtful' => false,
+                'category' => $gpphCategory,
+                'recommendation' => $rec['gpph'] ? 'Terindikasi kemungkinan GPPH, disarankan konsultasi spesialis.' : 'Tidak menunjukkan GPPH.',
+            ]);
+
+            // SDQ (Dummy Data Sesuai Permintaan User)
+            $isSdqAbnormal = (bool) ($rec['kmpe'] || $rec['mchat'] || $rec['gpph']);
+            $sdqTotalScore = $isSdqAbnormal ? 18 : 6;
+            $sdqCategory = $isSdqAbnormal ? 'abnormal' : 'normal';
+
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $session->id,
+                'instrument_code' => 'SDQ',
+                'status' => 'completed',
+                'started_at' => $screeningDate->subHour(),
+                'completed_at' => $screeningDate->subMinutes(30),
+            ]);
+            SdqScreening::create([
+                'screening_session_id' => $session->id,
+                'answers' => array_fill(0, 25, $isSdqAbnormal ? 1 : 0),
+                'total_difficulties_score' => $sdqTotalScore,
+                'emotional_score' => $isSdqAbnormal ? 5 : 1,
+                'conduct_score' => $isSdqAbnormal ? 4 : 1,
+                'hyperactivity_score' => $isSdqAbnormal ? 5 : 2,
+                'peer_score' => $isSdqAbnormal ? 4 : 2,
+                'prosocial_score' => $isSdqAbnormal ? 6 : 9,
+                'total_difficulties_category' => $sdqCategory,
+                'emotional_category' => $isSdqAbnormal ? 'abnormal' : 'normal',
+                'conduct_category' => $isSdqAbnormal ? 'abnormal' : 'normal',
+                'hyperactivity_category' => $isSdqAbnormal ? 'abnormal' : 'normal',
+                'peer_category' => $isSdqAbnormal ? 'abnormal' : 'normal',
+                'prosocial_category' => 'normal',
+                'recommendation' => $isSdqAbnormal ? 'Perlu pendampingan psikologis terarah.' : 'Perkembangan perilaku emosional baik.',
+            ]);
+
+            // SRQ-20 (Dummy Data Kesehatan Mental Pengasuh Sesuai Permintaan User)
+            $isSrqDistres = ($idx % 4 === 0) || ($isSdqAbnormal && $idx % 2 === 0);
+            $srqScore = $isSrqDistres ? 7 : 2;
+            $srqCategory = $isSrqDistres ? 'gangguan_mental_emosional_distres' : 'di_bawah_nilai_pisah';
+            $srqAnswers = array_fill(0, 20, false);
+            for ($i = 0; $i < $srqScore; $i++) {
+                $srqAnswers[$i] = true;
+            }
+            if ($idx % 20 === 0 && $isSrqDistres) {
+                $srqAnswers[16] = true;
             }
 
-            // ---------------------------------------------------------
-            // SESI 2: Kunjungan Evaluasi — Meragukan / Borderline
-            // Status: pending_doctor_review (Siap Ditinjau Dokter)
-            // Tanggal: 7 hari yang lalu
-            // ---------------------------------------------------------
-            $date2 = $today->subDays(7);
-            $s2 = ScreeningSession::create([
-                'patient_id' => $patient->id,
-                'nurse_id' => $nurse->id,
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $session->id,
+                'instrument_code' => 'SRQ',
+                'status' => 'completed',
+                'started_at' => $screeningDate->subHour(),
+                'completed_at' => $screeningDate->subMinutes(30),
+            ]);
+            SrqScreening::create([
+                'screening_session_id' => $session->id,
+                'answers' => $srqAnswers,
+                'score' => $srqScore,
+                'category' => $srqCategory,
+                'depression_score' => $isSrqDistres ? 3 : 1,
+                'anxiety_score' => $isSrqDistres ? 2 : 1,
+                'somatic_score' => $isSrqDistres ? 1 : 0,
+                'cognitive_score' => $isSrqDistres ? 1 : 0,
+                'energy_score' => 0,
+                'recommendation' => $isSrqDistres ? 'Disarankan konseling suportif bagi orang tua.' : 'Kondisi kesehatan mental emosional baik.',
+            ]);
+
+            // Rekomendasi / Interpretasi Klinis Dokter
+            ScreeningInterpretation::create([
+                'screening_session_id' => $session->id,
+                'instrument_code' => 'KPSP',
                 'doctor_id' => $doctor->id,
-                'created_by_user_id' => $nurse->user_id,
-                'screening_date' => $date2->toDateString(),
-                'age_months' => $ageMonths,
-                'status' => 'pending_doctor_review',
-                'notes' => 'Pemeriksaan skrining evaluasi berkala (Kunjungan 2) - Ditemukan indikasi Meragukan / Borderline. Menunggu tinjauan dokter.',
-                'doctor_notes' => null,
-                'reviewed_at' => null,
+                'clinical_notes' => 'Tinjauan klinis selesai. Program intervensi disetujui.',
+                'follow_up_decision' => !empty($rec['rujukan_ke']) ? 'rujuk_rs' : 'konseling_stimulasi',
+                'follow_up_notes' => 'Jadwalkan pemantauan berkala di UPTD BLK-ABK.',
+                'status' => 'completed',
+                'completed_at' => $screeningDate->addHours(2),
             ]);
-
-            foreach ($eligibleInstruments as $code) {
-                ScreeningSessionInstrument::create([
-                    'screening_session_id' => $s2->id,
-                    'instrument_code' => $code,
-                    'status' => 'completed',
-                    'started_at' => $date2->subHours(2),
-                    'completed_at' => $date2->subHours(1),
-                ]);
-
-                $this->seedInstrumentResult($s2->id, $code, 'borderline', $kpspFormAge, $patient->name);
-            }
-
-            // ---------------------------------------------------------
-            // SESI 3: Kunjungan Komprehensif — Penyimpangan / Abnormal
-            // Status: reviewed (Selesai Ditinjau Dokter dengan Rujukan)
-            // Tanggal: Hari ini
-            // ---------------------------------------------------------
-            $date3 = $today;
-            $s3 = ScreeningSession::create([
-                'patient_id' => $patient->id,
-                'nurse_id' => $nurse->id,
-                'doctor_id' => $doctor->id,
-                'created_by_user_id' => $nurse->user_id,
-                'screening_date' => $date3->toDateString(),
-                'age_months' => $ageMonths,
-                'status' => 'reviewed',
-                'notes' => 'Pemeriksaan komprehensif (Kunjungan 3) - Indikasi Penyimpangan / Risiko Tinggi / Perlu Intervensi Spesialis.',
-                'doctor_notes' => "Tinjauan klinis selesai untuk {$patient->name}. Hasil skrining mengindikasikan perlunya pemantauan intensif, konseling keluarga, dan rujukan tumbuh kembang.",
-                'reviewed_at' => $date3->subHours(1),
-            ]);
-
-            foreach ($eligibleInstruments as $code) {
-                ScreeningSessionInstrument::create([
-                    'screening_session_id' => $s3->id,
-                    'instrument_code' => $code,
-                    'status' => 'completed',
-                    'started_at' => $date3->subHours(3),
-                    'completed_at' => $date3->subHours(2),
-                ]);
-
-                $this->seedInstrumentResult($s3->id, $code, 'abnormal', $kpspFormAge, $patient->name);
-
-                // Tambahkan interpretasi dokter resmi untuk setiap instrumen pada Sesi 3
-                $this->seedDoctorInterpretation($s3->id, $code, $doctor->id, $date3, $patient->name);
-            }
         }
     }
 
@@ -536,5 +626,179 @@ class ScreeningSessionSeeder extends Seeder
             'status' => 'completed',
             'completed_at' => $date->subHours(1),
         ]);
+    }
+
+    /**
+     * Skenario pengujian aktif menggunakan anak asli UPTD:
+     * - RM-002 (Chairil Rafqi Nababan, 61 bln): Sesi aktif hari ini untuk Orang Tua mengisi SDQ & SRQ
+     * - RM-003 (Rychi Yislam Gaza, 25 bln): Sesi kemarin menunggu telaah dokter (pending_doctor_review)
+     * - RM-005 (Adelio Vember, 37 bln): Sesi evaluasi ulang KPSP 14 hari untuk Perawat
+     */
+    private function seedActiveTestingSessions(Nurse $nurse, Doctor $doctor, CarbonImmutable $today): void
+    {
+        // 1. SKENARIO ORANG TUA: RM-002 (Chairil Rafqi Nababan, 61 bln / 5 th)
+        $p2 = Patient::where('medical_record_number', 'RM-002')->first();
+        if ($p2) {
+            $s2 = ScreeningSession::create([
+                'patient_id' => $p2->id,
+                'nurse_id' => $nurse->id,
+                'doctor_id' => null,
+                'created_by_user_id' => $nurse->user_id,
+                'screening_date' => $today->toDateString(),
+                'age_months' => 61,
+                'case_type' => 'lama',
+                'referral_source' => 'Puskesmas Karang Rejo',
+                'interventions' => ['konseling'],
+                'status' => 'in_progress',
+                'notes' => 'Pemeriksaan berkala usia 5 tahun. Menunggu pengisian kuesioner SDQ dan SRQ-20 oleh Orang Tua.',
+                'doctor_notes' => null,
+                'reviewed_at' => null,
+            ]);
+
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $s2->id,
+                'instrument_code' => 'KPSP',
+                'status' => 'completed',
+                'started_at' => $today->subHours(2),
+                'completed_at' => $today->subHour(),
+            ]);
+            $this->seedInstrumentResult($s2->id, 'KPSP', 'normal', 60, $p2->name);
+
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $s2->id,
+                'instrument_code' => 'GPPH',
+                'status' => 'completed',
+                'started_at' => $today->subHour(),
+                'completed_at' => $today->subMinutes(30),
+            ]);
+            $this->seedInstrumentResult($s2->id, 'GPPH', 'normal', 60, $p2->name);
+
+            // SDQ: status pending (siap diisi orang tua)
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $s2->id,
+                'instrument_code' => 'SDQ',
+                'status' => 'pending',
+                'started_at' => null,
+                'completed_at' => null,
+            ]);
+
+            // SRQ: status pending (siap diisi orang tua)
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $s2->id,
+                'instrument_code' => 'SRQ',
+                'status' => 'pending',
+                'started_at' => null,
+                'completed_at' => null,
+            ]);
+        }
+
+        // 2. SKENARIO DOKTER: RM-003 (Rychi Yislam Gaza, 25 bln)
+        $p3 = Patient::where('medical_record_number', 'RM-003')->first();
+        if ($p3) {
+            $date3 = $today->subDays(1);
+            $s3 = ScreeningSession::create([
+                'patient_id' => $p3->id,
+                'nurse_id' => $nurse->id,
+                'doctor_id' => $doctor->id,
+                'created_by_user_id' => $nurse->user_id,
+                'screening_date' => $date3->toDateString(),
+                'age_months' => 25,
+                'case_type' => 'lama',
+                'referral_source' => 'Puskesmas Damai',
+                'interventions' => ['ot', 'tw', 'konseling'],
+                'status' => 'pending_doctor_review',
+                'notes' => 'Pemeriksaan evaluasi 25 bulan - Hasil KPSP meragukan (8/10). Menunggu tinjauan dokter.',
+                'doctor_notes' => null,
+                'reviewed_at' => null,
+            ]);
+
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $s3->id,
+                'instrument_code' => 'KPSP',
+                'status' => 'completed',
+                'started_at' => $date3->subHours(2),
+                'completed_at' => $date3->subHours(1),
+            ]);
+            $this->seedInstrumentResult($s3->id, 'KPSP', 'borderline', 24, $p3->name);
+
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $s3->id,
+                'instrument_code' => 'MCHAT',
+                'status' => 'completed',
+                'started_at' => $date3->subHours(1),
+                'completed_at' => $date3->subMinutes(30),
+            ]);
+            $this->seedInstrumentResult($s3->id, 'MCHAT', 'normal', 24, $p3->name);
+        }
+
+        // 3. SKENARIO EVALUASI ULANG KPSP 14 HARI: RM-005 (Adelio Vember, 37 bln)
+        $p5 = Patient::where('medical_record_number', 'RM-005')->first();
+        if ($p5) {
+            $date1 = $today->subDays(14);
+            $s1 = ScreeningSession::create([
+                'patient_id' => $p5->id,
+                'nurse_id' => $nurse->id,
+                'doctor_id' => $doctor->id,
+                'created_by_user_id' => $nurse->user_id,
+                'screening_date' => $date1->toDateString(),
+                'age_months' => 37,
+                'case_type' => 'baru',
+                'referral_source' => 'Puskesmas Manggar',
+                'referral_target' => null,
+                'interventions' => ['konseling'],
+                'status' => 'reviewed',
+                'notes' => 'Pemeriksaan skrining berkala 36 bulan - Hasil KPSP Meragukan (Dm: Skor 8/10). Diberikan instruksi intervensi stimulasi intensif 2 minggu di rumah.',
+                'doctor_notes' => 'KPSP Meragukan (Dm) pada domain motorik kasar dan bicara. Lakukan stimulasi terarah selama 14 hari sesuai buku KIA, lalu lakukan evaluasi ulang KPSP.',
+                'reviewed_at' => $date1->addHours(2),
+            ]);
+
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $s1->id,
+                'instrument_code' => 'KPSP',
+                'status' => 'completed',
+                'started_at' => $date1->subHours(2),
+                'completed_at' => $date1->subHours(1),
+            ]);
+            $this->seedInstrumentResult($s1->id, 'KPSP', 'borderline', 36, $p5->name);
+
+            ScreeningInterpretation::create([
+                'screening_session_id' => $s1->id,
+                'instrument_code' => 'KPSP',
+                'doctor_id' => $doctor->id,
+                'clinical_notes' => 'Hasil KPSP Meragukan (Dm: 8/10). Disarankan intervensi stimulasi dini intensif di rumah selama 2 minggu.',
+                'follow_up_decision' => 'konseling_stimulasi',
+                'follow_up_notes' => 'Jadwalkan evaluasi ulang KPSP 14 hari kemudian.',
+                'status' => 'completed',
+                'completed_at' => $date1->addHours(2),
+            ]);
+
+            // Sesi 2 (Hari Ini): Menunggu input evaluasi ulang KPSP oleh Perawat
+            $sReeval = ScreeningSession::create([
+                'patient_id' => $p5->id,
+                'nurse_id' => $nurse->id,
+                'doctor_id' => $doctor->id,
+                'created_by_user_id' => $nurse->user_id,
+                'screening_date' => $today->toDateString(),
+                'age_months' => 37,
+                'case_type' => 'lama',
+                'referral_source' => 'Puskesmas Manggar',
+                'referral_target' => 'RSUD Kanujoso Djatiwibowo',
+                'interventions' => ['ot', 'tw', 'rujukan'],
+                'status' => 'draft',
+                'evaluation_type' => 'kpsp_re_evaluation_2_weeks',
+                'parent_session_id' => $s1->id,
+                'notes' => "Evaluasi ulang KPSP 2 minggu pasca intervensi dini perkembangan dari Sesi #{$s1->id} (Hasil sebelumnya: Meragukan / Dm: 8/10).",
+                'doctor_notes' => null,
+                'reviewed_at' => null,
+            ]);
+
+            ScreeningSessionInstrument::create([
+                'screening_session_id' => $sReeval->id,
+                'instrument_code' => 'KPSP',
+                'status' => 'pending',
+                'started_at' => null,
+                'completed_at' => null,
+            ]);
+        }
     }
 }

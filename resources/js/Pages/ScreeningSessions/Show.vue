@@ -505,20 +505,128 @@ function submitInterpretation() {
     });
 }
 
-// Finalize Form
+// Finalize Form & Interventions
+const interventionsForm = useForm({
+    interventions: Array.isArray(props.session.interventions) ? [...props.session.interventions] : [],
+    referral_target: props.session.referral_target ?? '',
+    case_type: props.session.case_type ?? 'baru',
+    referral_source: props.session.referral_source ?? '',
+});
+
+function toggleIntervention(code) {
+    const idx = interventionsForm.interventions.indexOf(code);
+    if (idx > -1) {
+        interventionsForm.interventions.splice(idx, 1);
+    } else {
+        interventionsForm.interventions.push(code);
+    }
+}
+
+function submitInterventions() {
+    interventionsForm.patch(`/screening-sessions/${props.session.id}/interventions`, {
+        preserveScroll: true,
+    });
+}
+
 const finalizeForm = useForm({
     doctor_notes: props.session.doctor_notes ?? '',
+    interventions: [],
+    referral_target: '',
 });
 
 function submitFinalize() {
+    finalizeForm.interventions = [...interventionsForm.interventions];
+    finalizeForm.referral_target = interventionsForm.referral_target;
     if (confirm('Apakah Anda yakin ingin menyelesaikan dan memfinalisasi tinjauan sesi skrining ini?')) {
         finalizeForm.post(`/screening-sessions/${props.session.id}/finalize`);
     }
 }
 
-function printReport() {
+function formatDateIndo(value) {
+    if (!value) return '-';
+    const [year, month, day] = String(value).slice(0, 10).split('-');
+    const months = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+    const mIdx = parseInt(month, 10) - 1;
+    return `${parseInt(day, 10)} ${months[mIdx] ?? month} ${year}`;
+}
+
+function cleanPatientName(name) {
+    if (!name) return '-';
+    return String(name).replace(/\s*\((?:Usia|umur)[^)]*\)/gi, '').trim();
+}
+
+const ageYears = computed(() => Math.floor((props.session.age_months ?? 0) / 12));
+const ageRemainingMonths = computed(() => (props.session.age_months ?? 0) % 12);
+const ageDisplayIndo = computed(() => {
+    const y = ageYears.value;
+    const m = ageRemainingMonths.value;
+    const total = props.session.age_months ?? 0;
+    if (y > 0) {
+        return `${y} tahun ${m} bulan (${total} bulan)`;
+    }
+    return `${m} bulan`;
+});
+
+// Print mode for Official SDIDTK Form vs Full Detailed Worksheets
+function printSdidtkForm() {
     window.print();
 }
+
+function printReport() {
+    printSdidtkForm();
+}
+
+// SDIDTK Instrument Status & Findings
+const kpsp = computed(() => props.session?.kpsp_screening);
+const kpspCode = computed(() => {
+    if (!kpsp.value) return null;
+    return kpsp.value.sdidtk_code ?? (kpsp.value.score >= 9 ? 'Ds' : (kpsp.value.score >= 7 ? 'Dm' : 'Dp'));
+});
+
+const mchat = computed(() => props.session?.mchat_screening);
+const gpph = computed(() => props.session?.gpph_screening);
+const sdq = computed(() => props.session?.sdq_screening);
+const srq = computed(() => props.session?.srq_screening);
+
+const isKpspReEval = computed(() => {
+    return Boolean(
+        props.session?.is_re_evaluation ||
+        props.session?.evaluation_type === 'kpsp_re_evaluation_2_weeks' ||
+        props.session?.parent_session_id
+    );
+});
+
+const hasReferral = computed(() => {
+    const interps = props.session?.screening_interpretations ?? [];
+    return interps.some((i) => i.follow_up_decision === 'rujuk_rs') ||
+        kpspCode.value === 'Dp' ||
+        (isKpspReEval.value && kpspCode.value === 'Dm') ||
+        (mchat.value && mchat.value.category === 'risiko_sedang_tinggi') ||
+        (gpph.value && gpph.value.category === 'kemungkinan_gpph') ||
+        (sdq.value && sdq.value.total_difficulties_category === 'abnormal');
+});
+
+const referralTarget = computed(() => {
+    const interps = props.session?.screening_interpretations ?? [];
+    const rujukInterp = interps.find((i) => i.follow_up_decision === 'rujuk_rs');
+    if (rujukInterp && rujukInterp.follow_up_notes) {
+        return rujukInterp.follow_up_notes;
+    }
+    if (hasReferral.value) {
+        return 'Poli Tumbuh Kembang / Dokter Spesialis Anak RS Rujukan';
+    }
+    return 'Tidak ada rujukan (Kondisi perkembangan terkendali)';
+});
+
+const referralReason = computed(() => {
+    const reasons = [];
+    if (kpspCode.value === 'Dp') reasons.push('Kemungkinan penyimpangan perkembangan KPSP (Dp)');
+    if (isKpspReEval.value && kpspCode.value === 'Dm') reasons.push('Evaluasi ulang KPSP 2 minggu tetap meragukan (Dm)');
+    if (mchat.value?.category === 'risiko_sedang_tinggi') reasons.push('Risiko tinggi gangguan spektrum autisme (M-CHAT-R)');
+    if (gpph.value?.category === 'kemungkinan_gpph') reasons.push('Kemungkinan GPPH (skor tinggi)');
+    if (sdq.value?.total_difficulties_category === 'abnormal') reasons.push('Masalah perilaku emosional anak (SDQ kategori abnormal)');
+    return reasons.length > 0 ? reasons.join('; ') : '-';
+});
 </script>
 
 <template>
@@ -535,17 +643,19 @@ function printReport() {
                         Hasil evaluasi instrumen, sintesis SPK, stimulasi perkembangan, dan tinjauan dokter.
                     </p>
                 </div>
-                <div class="flex items-center gap-3">
+                <div class="flex flex-wrap items-center gap-2">
+                    <!-- Tombol Cetak Formulir SDIDTK Resmi -->
                     <button
                         type="button"
-                        @click="printReport"
-                        class="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-3.5 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition"
+                        @click="printSdidtkForm"
+                        class="inline-flex items-center gap-1.5 rounded-xl bg-teal px-3.5 py-2 text-xs font-bold text-white shadow-xs hover:bg-teal-dark transition"
                     >
-                        <svg class="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4H9v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
                         </svg>
-                        Cetak Laporan
+                        Cetak Formulir SDIDTK
                     </button>
+
 
                     <!-- Doctor Delete Button -->
                     <button
@@ -586,19 +696,392 @@ function printReport() {
                     href="/dashboard"
                     class="inline-flex items-center gap-1 text-gray-500 hover:text-navy transition"
                 >
-                    Patient Directory (Dashboard)
+                    Daftar Pasien (Dashboard)
                 </Link>
             </div>
 
-            <!-- Print Header Banner (only visible on print) -->
-            <div class="hidden print:block border-b-2 border-gray-900 pb-4 mb-6 text-center">
-                <h1 class="text-xl font-bold uppercase tracking-wide text-gray-900">
-                    Sistem Pendukung Keputusan Skrining Tumbuh Kembang Anak
-                </h1>
-                <p class="text-xs text-gray-600 mt-1">
-                    Laporan Hasil Skrining, Sintesis Rekomendasi Klinis & Rencana Tindak Lanjut
-                </p>
-            </div>
+            <!-- FORMULIR DETEKSI DINI TUMBUH KEMBANG ANAK (STANDAR SDIDTK KEMENKES RI) - KHUSUS CETAK LAPORAN -->
+            <section
+                id="sdidtk-official-form"
+                class="hidden print:flex flex-col justify-between"
+            >
+                <div class="space-y-1.5 print:space-y-0.5 flex-1">
+                    <!-- Kop Dokumen -->
+                <div class="border-b-2 border-navy dark:border-sand/40 pb-3 print:pb-1 text-center print:border-black">
+                    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-1 mb-2 print:mb-0.5">
+                        <div class="text-left text-xs font-bold text-gray-700 dark:text-gray-300 print:text-black">
+                            <span>No. Rekam Medis:</span>
+                            <span class="ml-1.5 font-mono font-black text-navy dark:text-white print:text-black text-sm">{{ session.patient?.medical_record_number ?? '-' }}</span>
+                        </div>
+                        <div class="text-right text-3xs uppercase tracking-wider text-gray-500 font-semibold print:text-black">
+                            Standar SDIDTK Kemenkes RI
+                        </div>
+                    </div>
+                    <h1 class="text-lg sm:text-xl print:text-base font-black uppercase tracking-wider text-navy dark:text-white print:text-black">
+                        FORMULIR DETEKSI DINI TUMBUH KEMBANG ANAK
+                    </h1>
+                    <div class="mt-2 print:mt-1 flex flex-wrap justify-between items-center gap-x-2 text-2xs sm:text-xs text-gray-700 dark:text-gray-300 font-semibold print:text-black">
+                        <div><span class="font-bold">Puskesmas:</span> UPTD BLK-ABK</div>
+                        <div><span class="font-bold">Kec:</span> Balikpapan Selatan</div>
+                        <div><span class="font-bold">Kab/Kota:</span> Balikpapan</div>
+                        <div><span class="font-bold">Prov:</span> Kalimantan Timur</div>
+                    </div>
+                </div>
+
+                <!-- Bagian I: IDENTITAS ANAK -->
+                <div class="space-y-2 print:space-y-0.5 mt-3 print:mt-3">
+                    <h2 class="text-xs sm:text-sm print:text-xs font-black uppercase text-navy dark:text-white border-b border-gray-200 dark:border-white/10 pb-1 print:pb-0.5 print:text-black print:border-black">
+                        I. IDENTITAS ANAK
+                    </h2>
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-1.5 print:gap-y-0.5 text-xs text-gray-800 dark:text-gray-200 print:text-black">
+                        <div class="flex">
+                            <span class="w-36 font-semibold shrink-0">1. Nama</span>
+                            <span class="mr-2">:</span>
+                            <span class="font-black text-navy dark:text-white print:text-black">{{ cleanPatientName(session.patient?.name) || '-' }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="w-36 font-semibold shrink-0">2. Jenis kelamin</span>
+                            <span class="mr-2">:</span>
+                            <span>{{ session.patient?.gender === 'L' ? 'Laki-laki (L)' : 'Perempuan (P)' }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="w-36 font-semibold shrink-0">3. Nama Orang Tua / Wali</span>
+                            <span class="mr-2">:</span>
+                            <span>{{ session.patient?.parent_guardian?.user?.name ?? '-' }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="w-36 font-semibold shrink-0">4. Tanggal periksa</span>
+                            <span class="mr-2">:</span>
+                            <span>{{ formatDateIndo(session.screening_date) }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="w-36 font-semibold shrink-0">5. Tanggal lahir</span>
+                            <span class="mr-2">:</span>
+                            <span>{{ formatDateIndo(session.patient?.birth_date) }}</span>
+                        </div>
+                        <div class="flex">
+                            <span class="w-36 font-semibold shrink-0">6. Umur anak</span>
+                            <span class="mr-2">:</span>
+                            <span class="font-bold">{{ ageDisplayIndo }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bagian II: ANAMNESIS -->
+                <div class="space-y-1.5 print:space-y-0.5 mt-3 print:mt-3">
+                    <h2 class="text-xs sm:text-sm print:text-xs font-black uppercase text-navy dark:text-white border-b border-gray-200 dark:border-white/10 pb-1 print:pb-0.5 print:text-black print:border-black">
+                        II. ANAMNESIS
+                    </h2>
+                    <div class="space-y-1 print:space-y-0.5 text-xs text-gray-800 dark:text-gray-200 print:text-black">
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <span class="font-semibold">1. Keluhan utama</span>
+                            <span>:</span>
+                            <span class="italic text-gray-700 dark:text-gray-300 print:text-black">{{ cleanPatientName(session.notes) || 'Tidak ada keluhan khusus yang dicatat.' }}</span>
+                        </div>
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <span class="font-semibold">2. Apakah anak memiliki masalah tumbuh kembang</span>
+                            <span>:</span>
+                            <span>
+                                <span v-if="session.patient?.is_premature" class="font-semibold text-earth dark:text-amber-400 print:text-black">
+                                    Ya, riwayat kelahiran prematur pada usia gestasi {{ session.patient.gestational_age_weeks }} minggu.
+                                </span>
+                                <span v-else-if="session.parent_session_id" class="font-semibold text-earth dark:text-amber-400 print:text-black">
+                                    Ya, riwayat evaluasi ulang dari sesi skrining sebelumnya (#{{ session.parent_session_id }}).
+                                </span>
+                                <span v-else class="text-gray-600 dark:text-gray-400 print:text-black">
+                                    Tidak ada riwayat masalah tumbuh kembang terdokumentasi.
+                                </span>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bagian III: PEMERIKSAAN RUTIN SESUAI JADWAL -->
+                <div class="space-y-1.5 print:space-y-0.5 mt-3 print:mt-3">
+                    <div class="border-b border-gray-200 dark:border-white/10 pb-1 print:pb-0.5 print:border-black">
+                        <h2 class="text-xs sm:text-sm print:text-xs font-black uppercase text-navy dark:text-white print:text-black">
+                            III. PEMERIKSAAN RUTIN SESUAI JADWAL
+                        </h2>
+                    </div>
+
+                    <div class="text-xs text-gray-800 dark:text-gray-200 space-y-1.5 print:space-y-0.5 print:text-black">
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <span class="font-bold text-navy dark:text-white print:text-black">
+                                1. KPSP
+                            </span>
+                            <span>:</span>
+                            <div class="space-y-0.5">
+                                <div v-if="kpsp" class="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                                    <span :class="kpspCode === 'Ds' ? 'font-black text-emerald-700 dark:text-emerald-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ kpspCode === 'Ds' ? '☑' : '☐' }} a. Sesuai umur (Ds)
+                                    </span>
+                                    <span :class="kpspCode === 'Dm' ? 'font-black text-amber-700 dark:text-amber-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ kpspCode === 'Dm' ? '☑' : '☐' }} b. Meragukan (Dm)
+                                    </span>
+                                    <span :class="kpspCode === 'Dp' ? 'font-black text-rose-700 dark:text-rose-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ kpspCode === 'Dp' ? '☑' : '☐' }} c. Ada kemungkinan penyimpangan (Dp)
+                                    </span>
+                                </div>
+                                <div v-else class="text-gray-400 italic">
+                                    (Tidak dilakukan skrining KPSP pada sesi ini)
+                                </div>
+
+                                <!-- KPSP Domain breakdown info -->
+                                <div v-if="kpsp" class="text-2xs text-gray-600 dark:text-gray-400 print:text-black flex flex-wrap gap-x-3 gap-y-0.5 pt-0.5">
+                                    <span class="font-bold text-teal dark:text-teal-300 print:text-black">Skor Total: {{ kpsp.score }}/10</span>
+                                    <span>&bull;</span>
+                                    <span>Gerak Kasar: {{ kpsp.domain_scores?.kasar?.score ?? '-' }}/{{ kpsp.domain_scores?.kasar?.total ?? '-' }}</span>
+                                    <span>&bull;</span>
+                                    <span>Gerak Halus: {{ kpsp.domain_scores?.halus?.score ?? '-' }}/{{ kpsp.domain_scores?.halus?.total ?? '-' }}</span>
+                                    <span>&bull;</span>
+                                    <span>Bicara & Bahasa: {{ kpsp.domain_scores?.bicara?.score ?? '-' }}/{{ kpsp.domain_scores?.bicara?.total ?? '-' }}</span>
+                                    <span>&bull;</span>
+                                    <span>Sosialisasi & Kemandirian: {{ kpsp.domain_scores?.sosialisasi?.score ?? '-' }}/{{ kpsp.domain_scores?.sosialisasi?.total ?? '-' }}</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bagian IV: PEMERIKSAAN ATAS INDIKASI -->
+                <div class="space-y-2 print:space-y-0.5 mt-3 print:mt-3">
+                    <div class="flex items-center justify-between border-b border-gray-200 dark:border-white/10 pb-1 print:pb-0.5 print:border-black">
+                        <h2 class="text-xs sm:text-sm print:text-xs font-black uppercase text-navy dark:text-white print:text-black">
+                            IV. PEMERIKSAAN ATAS INDIKASI
+                        </h2>
+                    </div>
+
+                    <div class="text-xs text-gray-800 dark:text-gray-200 space-y-2 print:space-y-0.5 print:text-black">
+                        <!-- 1. Masalah perilaku emosi (SDQ) -->
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <span class="font-bold text-navy dark:text-white print:text-black">
+                                1. Masalah perilaku emosi (SDQ)
+                            </span>
+                            <span>:</span>
+                            <div class="space-y-0.5">
+                                <div v-if="sdq" class="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                                    <span :class="sdq.total_difficulties_category === 'normal' ? 'font-black text-emerald-700 dark:text-emerald-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ sdq.total_difficulties_category === 'normal' ? '☑' : '☐' }} a. Normal
+                                    </span>
+                                    <span :class="sdq.total_difficulties_category === 'ambang_borderline' ? 'font-black text-amber-700 dark:text-amber-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ sdq.total_difficulties_category === 'ambang_borderline' ? '☑' : '☐' }} b. Meragukan (Ambang)
+                                    </span>
+                                    <span :class="sdq.total_difficulties_category === 'abnormal' ? 'font-black text-rose-700 dark:text-rose-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ sdq.total_difficulties_category === 'abnormal' ? '☑' : '☐' }} c. Kemungkinan masalah perilaku emosional (Abnormal)
+                                    </span>
+                                </div>
+                                <div v-else class="text-gray-400 italic">
+                                    (Tidak dilakukan skrining SDQ pada sesi ini)
+                                </div>
+                                <div v-if="sdq" class="text-2xs text-gray-600 dark:text-gray-400 print:text-black flex flex-wrap gap-x-3 gap-y-0.5 pt-0.5">
+                                    <span class="font-bold text-teal dark:text-teal-300 print:text-black">Skor Total Kesulitan: {{ sdq.total_difficulties_score }}/40</span>
+                                    <span>&bull;</span>
+                                    <span>Emosional: {{ sdq.emotional_score }}</span>
+                                    <span>&bull;</span>
+                                    <span>Perilaku: {{ sdq.conduct_score }}</span>
+                                    <span>&bull;</span>
+                                    <span>Hiperaktivitas: {{ sdq.hyperactivity_score }}</span>
+                                    <span>&bull;</span>
+                                    <span>Teman Sebaya: {{ sdq.peer_score ?? sdq.peer_problem_score ?? 0 }}</span>
+                                    <span>&bull;</span>
+                                    <span>Prososial: {{ sdq.prosocial_score }}</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 2. Gangguan spektrum autisme (M-Chat-R) -->
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <div class="font-bold text-navy dark:text-white print:text-black leading-snug">
+                                <span>2. Gangguan spektrum autisme</span>
+                                <span class="block text-2xs font-normal print:text-black">(M-Chat-R)</span>
+                            </div>
+                            <span>:</span>
+                            <div class="space-y-0.5">
+                                <div v-if="mchat" class="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                                    <span :class="mchat.category === 'risiko_rendah' ? 'font-black text-emerald-700 dark:text-emerald-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ mchat.category === 'risiko_rendah' ? '☑' : '☐' }} a. Risiko rendah
+                                    </span>
+                                    <span :class="mchat.category !== 'risiko_rendah' ? 'font-black text-rose-700 dark:text-rose-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ mchat.category !== 'risiko_rendah' ? '☑' : '☐' }} b. Risiko sedang-tinggi
+                                    </span>
+                                    <span class="text-2xs text-gray-500 print:text-black font-semibold">(Skor Risiko: {{ mchat.score }}/20)</span>
+                                </div>
+                                <div v-else class="text-gray-400 italic">
+                                    (Tidak dilakukan skrining M-CHAT-R pada sesi ini)
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 3. GPPH -->
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <span class="font-bold text-navy dark:text-white print:text-black">
+                                3. GPPH / ACTRS
+                            </span>
+                            <span>:</span>
+                            <div class="space-y-0.5">
+                                <div v-if="gpph" class="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                                    <span :class="gpph.category === 'tidak_menunjukkan_gpph' ? 'font-black text-emerald-700 dark:text-emerald-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ gpph.category === 'tidak_menunjukkan_gpph' ? '☑' : '☐' }} a. Normal
+                                    </span>
+                                    <span :class="gpph.category === 'kemungkinan_gpph' ? 'font-black text-rose-700 dark:text-rose-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ gpph.category === 'kemungkinan_gpph' ? '☑' : '☐' }} b. Kemungkinan GPPH
+                                    </span>
+                                    <span class="text-2xs text-gray-500 print:text-black font-semibold">(Skor: {{ gpph.score }}/30)</span>
+                                </div>
+                                <div v-else class="text-gray-400 italic">
+                                    (Tidak dilakukan skrining GPPH pada sesi ini)
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 4. SRQ-20 (Faktor Pengasuh) -->
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <span class="font-bold text-navy dark:text-white print:text-black">
+                                4. Faktor Pengasuh (SRQ-20)
+                            </span>
+                            <span>:</span>
+                            <div class="space-y-0.5">
+                                <div v-if="srq" class="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                                    <span :class="srq.category === 'di_bawah_nilai_pisah' ? 'font-black text-emerald-700 dark:text-emerald-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ srq.category === 'di_bawah_nilai_pisah' ? '☑' : '☐' }} a. Normal / Tidak ada distres mental
+                                    </span>
+                                    <span :class="srq.category !== 'di_bawah_nilai_pisah' ? 'font-black text-rose-700 dark:text-rose-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ srq.category !== 'di_bawah_nilai_pisah' ? '☑' : '☐' }} b. Mengalami distres mental emosional
+                                    </span>
+                                    <span class="text-2xs text-gray-500 print:text-black font-semibold">(Skor: {{ srq.score }}/20)</span>
+                                </div>
+                                <div v-else class="text-gray-400 italic">
+                                    (Tidak dilakukan skrining SRQ-20 pada sesi ini)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Bagian V: KESIMPULAN -->
+                <div class="space-y-1.5 print:space-y-0.5 mt-3 print:mt-3">
+                    <h2 class="text-xs sm:text-sm print:text-xs font-black uppercase text-navy dark:text-white border-b border-gray-200 dark:border-white/10 pb-1 print:pb-0.5 print:text-black print:border-black">
+                        V. KESIMPULAN
+                    </h2>
+                    <div class="rounded-xl border border-dashed border-gray-300 dark:border-white/15 p-4 bg-gray-50/50 dark:bg-white/5 text-xs text-gray-800 dark:text-gray-200 print:border-black print:bg-transparent print:rounded-none print:p-1.5 print:text-black">
+                        <p v-if="session.doctor_notes" class="leading-relaxed whitespace-pre-line font-medium">
+                            {{ cleanPatientName(session.doctor_notes) }}
+                        </p>
+                        <div v-else-if="session.screening_interpretations?.length" class="space-y-1 print:space-y-0.5">
+                            <div v-for="interp in session.screening_interpretations" :key="interp.id">
+                                <span class="font-bold text-navy dark:text-white print:text-black">[{{ interp.instrument_code }}]:</span>
+                                <span class="ml-1.5">{{ interp.clinical_notes || '-' }}</span>
+                            </div>
+                        </div>
+                        <p v-else class="text-gray-400 italic">
+                            Belum ada catatan kesimpulan klinis dokter (sesi masih dalam proses atau menunggu tinjauan dokter).
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Bagian VI: INTERVENSI DINI DAN RUJUKAN -->
+                <div class="space-y-1.5 print:space-y-0.5 mt-3 print:mt-3">
+                    <h2 class="text-xs sm:text-sm print:text-xs font-black uppercase text-navy dark:text-white border-b border-gray-200 dark:border-white/10 pb-1 print:pb-0.5 print:text-black print:border-black">
+                        VI. INTERVENSI DINI DAN RUJUKAN
+                    </h2>
+                    <div class="text-xs text-gray-800 dark:text-gray-200 space-y-1.5 print:space-y-0.5 print:text-black">
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <span class="font-semibold">1. Konseling stimulasi perkembangan</span>
+                            <span>:</span>
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                                <span class="font-bold text-emerald-700 dark:text-emerald-400 print:text-black">☑ a. Diberikan</span>
+                                <span class="text-gray-400 print:text-black">☐ b. Tidak diberikan</span>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <span class="font-semibold">2. Intervensi dini masalah perkembangan</span>
+                            <span>:</span>
+                            <span>
+                                <span v-if="kpspCode === 'Ds'" class="font-bold text-emerald-700 dark:text-emerald-400 print:text-black">
+                                    Teruskan stimulasi rutin Buku KIA sesuai umur anak.
+                                </span>
+                                <span v-else-if="kpspCode === 'Dm'" class="font-bold text-amber-700 dark:text-amber-400 print:text-black">
+                                    Stimulasi intensif 2 minggu di rumah & jadwalkan evaluasi ulang 14 hari kemudian.
+                                </span>
+                                <span v-else-if="kpspCode === 'Dp'" class="font-bold text-rose-700 dark:text-rose-400 print:text-black">
+                                    Segera rujuk ke Rumah Sakit / Dokter Spesialis Anak untuk tindak lanjut penyimpangan.
+                                </span>
+                                <span v-else class="text-gray-500 dark:text-gray-400">
+                                    Sesuai indikasi observasi berkala.
+                                </span>
+                            </span>
+                        </div>
+
+                        <div class="grid grid-cols-[14rem_0.75rem_1fr] sm:grid-cols-[16rem_0.75rem_1fr] items-baseline gap-x-1">
+                            <span class="font-semibold">3. Intervensi dini masalah perilaku dan emosi</span>
+                            <span>:</span>
+                            <div class="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                                <span :class="(sdq?.total_difficulties_category === 'abnormal' || gpph?.category === 'kemungkinan_gpph' || mchat?.category !== 'risiko_rendah') ? 'font-bold text-rose-700 dark:text-rose-400 print:text-black' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                    {{ (sdq?.total_difficulties_category === 'abnormal' || gpph?.category === 'kemungkinan_gpph' || mchat?.category !== 'risiko_rendah') ? '☑ a. Diberikan' : '☐ a. Diberikan' }}
+                                </span>
+                                <span :class="!(sdq?.total_difficulties_category === 'abnormal' || gpph?.category === 'kemungkinan_gpph' || mchat?.category !== 'risiko_rendah') ? 'font-bold text-emerald-700 dark:text-emerald-400 print:text-black' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                    {{ !(sdq?.total_difficulties_category === 'abnormal' || gpph?.category === 'kemungkinan_gpph' || mchat?.category !== 'risiko_rendah') ? '☑ b. Tidak diberikan' : '☐ b. Tidak diberikan' }}
+                                </span>
+                            </div>
+                        </div>
+
+                        <div class="space-y-1 print:space-y-0.5 pt-1 border-t border-gray-100 dark:border-white/5 print:border-black">
+                            <span class="font-semibold block">4. Rujukan:</span>
+                            <div class="ml-2 sm:ml-4 space-y-1 print:space-y-0.5">
+                                <div class="grid grid-cols-[9rem_0.75rem_1fr] items-baseline gap-x-1">
+                                    <span class="font-semibold shrink-0">a. Dirujuk ke</span>
+                                    <span>:</span>
+                                    <span class="font-bold text-navy dark:text-white print:text-black">{{ referralTarget }}</span>
+                                </div>
+                                <div class="grid grid-cols-[9rem_0.75rem_1fr] items-baseline gap-x-1">
+                                    <span class="font-semibold shrink-0">b. Alasan dirujuk</span>
+                                    <span>:</span>
+                                    <span>{{ referralReason }}</span>
+                                </div>
+                                <div class="grid grid-cols-[9rem_0.75rem_1fr] items-baseline gap-x-1">
+                                    <span class="font-semibold shrink-0">c. Surat rujukan</span>
+                                    <span>:</span>
+                                    <div class="flex flex-wrap items-center gap-x-4 gap-y-0.5">
+                                        <span :class="hasReferral ? 'font-bold text-navy dark:text-white print:text-black' : 'text-gray-400 print:text-black'">
+                                            {{ hasReferral ? '☑ a. Ada surat rujukan' : '☐ a. Ada surat rujukan' }}
+                                        </span>
+                                        <span :class="!hasReferral ? 'font-bold text-navy dark:text-white print:text-black' : 'text-gray-400 print:text-black'">
+                                            {{ !hasReferral ? '☑ b. Tidak ada surat rujukan' : '☐ b. Tidak ada surat rujukan' }}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                </div>
+
+                <!-- Tanda Tangan Pemeriksa -->
+                <div class="pt-2 print:pt-0.5 flex justify-end text-xs text-gray-800 dark:text-gray-200 print:text-black print:break-inside-avoid print:mt-auto">
+                    <div class="text-center min-w-[200px]">
+                        <p>Balikpapan, {{ formatDateIndo(session.screening_date) }}</p>
+                        <p class="font-bold mt-0.5">Pemeriksa,</p>
+                        <div class="h-10 print:h-6 flex items-center justify-center">
+                            <span v-if="session.status === 'reviewed'" class="text-3xs uppercase tracking-wider font-extrabold text-emerald-700 border border-emerald-300 rounded px-2.5 py-0.5 bg-emerald-50 print:border-black print:bg-transparent print:rounded-none print:text-black">
+                                [Telah Ditinjau Dokter]
+                            </span>
+                        </div>
+                        <p class="font-black text-navy dark:text-white border-t border-gray-300 dark:border-white/20 pt-0.5 print:border-black print:text-black">
+                            {{ session.doctor?.user?.name ? 'dr. ' + session.doctor.user.name : (session.nurse?.user?.name ?? 'Tenaga Kesehatan') }}
+                        </p>
+                        <p class="text-2xs text-gray-500 dark:text-gray-400 print:text-black">
+                            {{ session.doctor?.user?.name ? 'Dokter Peninjau' : 'Perawat Pelaksana' }}
+                        </p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAMPILAN UTAMA SESI SKRINING (LAYAR NORMAL) -->
+            <div
+                id="detailed-worksheets"
+                class="space-y-6 print:hidden"
+            >
 
             <!-- Patient and Session Overview Card -->
             <section class="overflow-hidden rounded-2xl bg-white dark:bg-[#0C2038] shadow-xs border border-sand/40 dark:border-white/10">
@@ -1860,7 +2343,7 @@ function printReport() {
                         <svg class="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
                         </svg>
-                        Review Selesai & Difinalisasi
+                        Peninjauan Selesai & Difinalisasi
                     </div>
                 </div>
 
@@ -2028,6 +2511,108 @@ function printReport() {
                             </div>
                         </form>
 
+                        <!-- Form Layanan Kesehatan / Intervensi yang Diberikan (Standar UPTD BLK-ABK) -->
+                        <div class="rounded-xl bg-[#FAF7F0] dark:bg-white/5 border border-sand/40 dark:border-white/10 p-4 space-y-4">
+                            <div class="flex flex-wrap items-center justify-between gap-2 border-b border-sand/30 dark:border-white/10 pb-2">
+                                <div>
+                                    <h5 class="text-xs font-extrabold text-navy dark:text-white uppercase tracking-wider flex items-center gap-1.5">
+                                        <span>🩺</span>
+                                        <span>Layanan Kesehatan &amp; Intervensi yang Diberikan</span>
+                                    </h5>
+                                    <p class="text-3xs text-gray-500 dark:text-gray-400 mt-0.5">
+                                        Data ini otomatis tercatat pada kolom 19 s/d 28 Laporan Register Rekapitulasi SDIDTK UPTD BLK-ABK.
+                                    </p>
+                                </div>
+                                <button
+                                    type="button"
+                                    :disabled="interventionsForm.processing"
+                                    @click="submitInterventions"
+                                    class="rounded-xl bg-teal hover:bg-navy px-3.5 py-1.5 text-2xs font-extrabold text-white transition disabled:opacity-50 shadow-2xs cursor-pointer"
+                                >
+                                    {{ interventionsForm.processing ? 'Menyimpan...' : 'Simpan Layanan & Rujukan' }}
+                                </button>
+                            </div>
+
+                            <!-- Checklist 9 Layanan Intervensi -->
+                            <div>
+                                <label class="block text-2xs font-bold text-navy dark:text-sand-light uppercase tracking-wider mb-2">
+                                    Pilih Jenis Layanan / Terapi yang Diberikan ke Anak:
+                                </label>
+                                <div class="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                                    <label
+                                        v-for="item in [
+                                            { code: 'psikolog', label: 'Psikolog' },
+                                            { code: 'aba', label: 'Terapi Perilaku (ABA)' },
+                                            { code: 'ot', label: 'Terapi Okupasi (OT)' },
+                                            { code: 'tw', label: 'Terapi Wicara (TW)' },
+                                            { code: 'si', label: 'Sensori Integrasi (SI)' },
+                                            { code: 'fisioterapi', label: 'Fisioterapi' },
+                                            { code: 'perawatan_medis', label: 'Perawatan Medis' },
+                                            { code: 'konseling', label: 'Konseling' },
+                                            { code: 'rehabilitasi', label: 'Rehabilitasi Medik' },
+                                        ]"
+                                        :key="item.code"
+                                        class="flex items-center gap-2 rounded-xl border p-2 text-2xs font-bold transition cursor-pointer select-none"
+                                        :class="interventionsForm.interventions.includes(item.code)
+                                            ? 'bg-teal/15 text-teal-dark dark:text-teal-light border-teal'
+                                            : 'bg-white dark:bg-[#071D37] text-gray-700 dark:text-gray-300 border-sand/40 dark:border-white/10 hover:border-teal/50'"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            :checked="interventionsForm.interventions.includes(item.code)"
+                                            @change="toggleIntervention(item.code)"
+                                            class="rounded border-sand/60 text-teal focus:ring-teal h-3.5 w-3.5"
+                                        />
+                                        <span>{{ item.label }}</span>
+                                    </label>
+                                </div>
+                            </div>
+
+                            <!-- Rujukan Ke & Status Kasus -->
+                            <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2 border-t border-sand/20 dark:border-white/10">
+                                <div>
+                                    <label class="block text-2xs font-bold text-navy dark:text-sand-light mb-1">
+                                        Rujukan Ke (Tujuan Rujukan)
+                                    </label>
+                                    <input
+                                        v-model="interventionsForm.referral_target"
+                                        type="text"
+                                        maxlength="150"
+                                        placeholder="Contoh: RSUD Kanujoso, Sp.A"
+                                        class="w-full rounded-xl border-sand/60 dark:border-white/15 bg-white dark:bg-[#071D37] px-3 py-1.5 text-xs text-navy dark:text-white focus:border-teal focus:ring-teal"
+                                    />
+                                    <p class="text-3xs text-gray-400 mt-0.5">Kolom 28: Rujukan Ke</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-2xs font-bold text-navy dark:text-sand-light mb-1">
+                                        Rujukan Dari (Asal Pasien)
+                                    </label>
+                                    <input
+                                        v-model="interventionsForm.referral_source"
+                                        type="text"
+                                        maxlength="150"
+                                        placeholder="Contoh: Puskesmas Damai"
+                                        class="w-full rounded-xl border-sand/60 dark:border-white/15 bg-white dark:bg-[#071D37] px-3 py-1.5 text-xs text-navy dark:text-white focus:border-teal focus:ring-teal"
+                                    />
+                                    <p class="text-3xs text-gray-400 mt-0.5">Kolom 7: Rujukan Dari</p>
+                                </div>
+
+                                <div>
+                                    <label class="block text-2xs font-bold text-navy dark:text-sand-light mb-1">
+                                        Status Kasus
+                                    </label>
+                                    <select
+                                        v-model="interventionsForm.case_type"
+                                        class="w-full rounded-xl border-sand/60 dark:border-white/15 bg-white dark:bg-[#071D37] px-3 py-1.5 text-xs text-navy dark:text-white focus:border-teal focus:ring-teal font-bold"
+                                    >
+                                        <option value="baru">Kasus Baru (Kolom 5)</option>
+                                        <option value="lama">Kasus Lama (Kolom 6)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
                         <!-- Finalize Session Form -->
                         <div class="border-t border-gray-200 dark:border-white/10 pt-4">
                             <label class="block text-xs font-bold text-navy dark:text-gray-200 mb-1">
@@ -2047,13 +2632,14 @@ function printReport() {
                                     @click="submitFinalize"
                                     class="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white hover:bg-emerald-700 disabled:opacity-50 transition shadow-sm"
                                 >
-                                    {{ finalizeForm.processing ? 'Memproses...' : 'Finalisasi & Selesaikan Review Sesi' }}
+                                    {{ finalizeForm.processing ? 'Memproses...' : 'Finalisasi & Selesaikan Peninjauan Sesi' }}
                                 </button>
                             </div>
                         </div>
                     </div>
                 </div>
             </section>
+            </div> <!-- /#detailed-worksheets -->
         </div>
 
         <!-- Confirmation Modal Window for Delete -->
@@ -2120,16 +2706,111 @@ function printReport() {
     </AuthenticatedLayout>
 </template>
 
+<style>
+@page {
+    size: auto;
+    margin: 0mm;
+}
+</style>
+
 <style scoped>
 .text-2xs {
     font-size: 0.6875rem;
     line-height: 0.95rem;
 }
+.text-3xs {
+    font-size: 0.625rem;
+    line-height: 0.85rem;
+}
 
 @media print {
-    body {
-        background-color: white !important;
-        font-size: 11pt;
+    html,
+    html.dark,
+    body,
+    html.dark body {
+        background-color: #ffffff !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    #sdidtk-official-form,
+    html.dark #sdidtk-official-form {
+        display: flex !important;
+        flex-direction: column !important;
+        justify-content: space-between !important;
+        position: absolute !important;
+        top: 10mm !important;
+        left: 10mm !important;
+        width: 190mm !important;
+        height: 277mm !important;
+        border: 1.5px solid #000000 !important;
+        box-sizing: border-box !important;
+        padding: 5mm 7mm !important;
+        margin: 0 !important;
+        background-color: #ffffff !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        font-size: 8.5pt !important;
+        line-height: 1.5 !important;
+        overflow: hidden !important;
+    }
+
+    #sdidtk-official-form p,
+    #sdidtk-official-form div,
+    #sdidtk-official-form span,
+    html.dark #sdidtk-official-form p,
+    html.dark #sdidtk-official-form div,
+    html.dark #sdidtk-official-form span {
+        line-height: 1.5 !important;
+    }
+
+    #sdidtk-official-form,
+    #sdidtk-official-form *,
+    html.dark #sdidtk-official-form,
+    html.dark #sdidtk-official-form * {
+        color: #000000 !important;
+        border-color: #000000 !important;
+        background-color: #ffffff !important;
+        background: #ffffff !important;
+        background-image: none !important;
+        text-shadow: none !important;
+        box-shadow: none !important;
+    }
+
+    #sdidtk-official-form .border-b-2,
+    html.dark #sdidtk-official-form .border-b-2 {
+        border-bottom-width: 2px !important;
+        border-bottom-color: #000000 !important;
+    }
+
+    #sdidtk-official-form .border-b,
+    html.dark #sdidtk-official-form .border-b {
+        border-bottom-width: 1px !important;
+        border-bottom-color: #000000 !important;
+    }
+
+    #sdidtk-official-form .border-t,
+    html.dark #sdidtk-official-form .border-t {
+        border-top-width: 1px !important;
+        border-top-color: #000000 !important;
+    }
+
+    #sdidtk-official-form .border-dashed,
+    html.dark #sdidtk-official-form .border-dashed {
+        border-style: dashed !important;
+        border-width: 1px !important;
+        border-color: #000000 !important;
+    }
+
+    #detailed-worksheets,
+    html.dark #detailed-worksheets {
+        display: none !important;
     }
 
     .print-break-before,

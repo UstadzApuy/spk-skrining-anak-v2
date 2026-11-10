@@ -70,7 +70,26 @@ class PatientTest extends TestCase
         );
     }
 
-    public function test_non_nurse_cannot_access_patient_list(): void
+    public function test_non_staff_cannot_access_patient_list(): void
+    {
+        $parentRole = Role::create([
+            'name' => 'orang_tua',
+        ]);
+
+        $parent = User::create([
+            'name' => 'Orang Tua Test',
+            'email' => 'parent@test.local',
+            'password' => 'password',
+            'role_id' => $parentRole->id,
+        ]);
+
+        $response = $this->actingAs($parent)
+            ->get(route('patients.index'));
+
+        $response->assertForbidden();
+    }
+
+    public function test_doctor_can_access_patient_list(): void
     {
         $doctorRole = Role::create([
             'name' => 'dokter',
@@ -86,7 +105,7 @@ class PatientTest extends TestCase
         $response = $this->actingAs($doctor)
             ->get(route('patients.index'));
 
-        $response->assertForbidden();
+        $response->assertOk();
     }
 
     public function test_guest_cannot_access_patient_list(): void
@@ -567,21 +586,10 @@ class PatientTest extends TestCase
         ]);
     }
 
-    public function test_non_nurse_cannot_edit_or_update_patient(): void
+    public function test_non_staff_cannot_edit_or_update_patient(): void
     {
-        $doctorRole = Role::create([
-            'name' => 'dokter',
-        ]);
-
         $parentRole = Role::create([
             'name' => 'orang_tua',
-        ]);
-
-        $doctor = User::create([
-            'name' => 'Dokter Test',
-            'email' => 'dokter@test.local',
-            'password' => 'password',
-            'role_id' => $doctorRole->id,
         ]);
 
         $parent = User::create([
@@ -607,24 +615,147 @@ class PatientTest extends TestCase
             'is_active' => true,
         ]);
 
-        $this->actingAs($doctor)
+        $this->actingAs($parent)
             ->get(route('patients.edit', $patient))
             ->assertForbidden();
 
-        $this->put(route('patients.update', $patient), [
+        $this->actingAs($parent)
+            ->put(route('patients.update', $patient), [
+                'parent_guardian_id' => $parentGuardian->id,
+                'medical_record_number' => 'RM-AUTH-001',
+                'name' => 'Nama yang Diubah',
+                'birth_date' => '2024-01-01',
+                'gender' => 'L',
+                'guardian_relationship' => 'Ibu',
+                'is_premature' => false,
+                'gestational_age_weeks' => null,
+            ])->assertForbidden();
+
+        $this->assertDatabaseHas('patients', [
+            'id' => $patient->id,
+            'name' => 'Anak Test',
+        ]);
+    }
+
+    public function test_doctor_can_edit_and_update_patient(): void
+    {
+        $doctorRole = Role::create([
+            'name' => 'dokter',
+        ]);
+
+        $doctor = User::create([
+            'name' => 'Dokter Test',
+            'email' => 'dokter@test.local',
+            'password' => 'password',
+            'role_id' => $doctorRole->id,
+        ]);
+
+        $parentRole = Role::create([
+            'name' => 'orang_tua',
+        ]);
+
+        $parent = User::create([
+            'name' => 'Orang Tua Test',
+            'email' => 'parent@test.local',
+            'password' => 'password',
+            'role_id' => $parentRole->id,
+        ]);
+
+        $parentGuardian = ParentGuardian::create([
+            'user_id' => $parent->id,
+        ]);
+
+        $patient = Patient::create([
             'parent_guardian_id' => $parentGuardian->id,
-            'medical_record_number' => 'RM-AUTH-001',
-            'name' => 'Nama yang Diubah',
+            'medical_record_number' => 'RM-DOC-001',
+            'name' => 'Anak Dokter Edit',
+            'birth_date' => '2024-01-01',
+            'gender' => 'L',
+            'guardian_relationship' => 'Ayah',
+            'is_premature' => false,
+            'gestational_age_weeks' => null,
+            'is_active' => true,
+        ]);
+
+        $this->actingAs($doctor)
+            ->get(route('patients.edit', $patient))
+            ->assertOk();
+
+        $this->actingAs($doctor)
+            ->put(route('patients.update', $patient), [
+                'parent_guardian_id' => $parentGuardian->id,
+                'medical_record_number' => 'RM-DOC-001',
+                'name' => 'Nama Pasien Diubah Dokter',
+                'birth_date' => '2024-01-01',
+                'gender' => 'L',
+                'guardian_relationship' => 'Ayah',
+                'is_premature' => false,
+                'gestational_age_weeks' => null,
+                'education' => 'slb',
+                'school_name' => 'SLB Negeri 1',
+            ])->assertRedirect(route('patients.index'));
+
+        $this->assertDatabaseHas('patients', [
+            'id' => $patient->id,
+            'name' => 'Nama Pasien Diubah Dokter',
+            'education' => 'slb',
+            'school_name' => 'SLB Negeri 1',
+        ]);
+    }
+
+    public function test_only_doctor_can_delete_patient(): void
+    {
+        $doctorRole = Role::create(['name' => 'dokter']);
+        $nurseRole = Role::create(['name' => 'perawat']);
+        $parentRole = Role::create(['name' => 'orang_tua']);
+
+        $doctor = User::create([
+            'name' => 'Dokter Test',
+            'email' => 'dokter_del@test.local',
+            'password' => 'password',
+            'role_id' => $doctorRole->id,
+        ]);
+
+        $nurse = User::create([
+            'name' => 'Perawat Test',
+            'email' => 'perawat_del@test.local',
+            'password' => 'password',
+            'role_id' => $nurseRole->id,
+        ]);
+
+        $parent = User::create([
+            'name' => 'Orang Tua Test',
+            'email' => 'parent_del@test.local',
+            'password' => 'password',
+            'role_id' => $parentRole->id,
+        ]);
+
+        $parentGuardian = ParentGuardian::create(['user_id' => $parent->id]);
+
+        $patient = Patient::create([
+            'parent_guardian_id' => $parentGuardian->id,
+            'medical_record_number' => 'RM-DEL-001',
+            'name' => 'Pasien Akan Dihapus',
             'birth_date' => '2024-01-01',
             'gender' => 'L',
             'guardian_relationship' => 'Ibu',
             'is_premature' => false,
             'gestational_age_weeks' => null,
-        ])->assertForbidden();
+            'is_active' => true,
+        ]);
 
-        $this->assertDatabaseHas('patients', [
+        // Perawat mencoba menghapus -> forbidden
+        $this->actingAs($nurse)
+            ->delete(route('patients.destroy', $patient))
+            ->assertForbidden();
+
+        // Dokter menghapus -> berhasil redirect ke index
+        $this->actingAs($doctor)
+            ->delete(route('patients.destroy', $patient))
+            ->assertRedirect(route('patients.index'));
+
+        $this->assertDatabaseMissing('patients', [
             'id' => $patient->id,
-            'name' => 'Anak Test',
         ]);
     }
 

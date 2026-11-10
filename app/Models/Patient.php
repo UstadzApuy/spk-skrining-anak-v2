@@ -22,6 +22,9 @@ class Patient extends Model
         'name',
         'birth_date',
         'gender',
+        'address',
+        'education',
+        'school_name',
         'guardian_relationship',
         'is_premature',
         'gestational_age_weeks',
@@ -34,6 +37,14 @@ class Patient extends Model
     public function parentGuardian(): BelongsTo
     {
         return $this->belongsTo(ParentGuardian::class);
+    }
+
+    /**
+     * Get effective address of patient, fallback to parent guardian address.
+     */
+    public function getEffectiveAddressAttribute(): string
+    {
+        return $this->address ?: ($this->parentGuardian?->address ?: '-');
     }
 
     /**

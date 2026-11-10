@@ -7,28 +7,28 @@ use App\Models\KpspScreening;
 use App\Models\MchatScreening;
 use App\Models\ParentGuardian;
 use App\Models\Patient;
+use App\Models\Role;
 use App\Models\ScreeningInterpretation;
 use App\Models\ScreeningSession;
 use App\Models\ScreeningSessionInstrument;
 use App\Models\SdqScreening;
 use App\Models\SrqScreening;
+use App\Models\User;
 use Carbon\CarbonImmutable;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 
 class PatientSeeder extends Seeder
 {
     /**
      * Run the database seeds.
-     * Membersihkan seluruh data pasien dan sesi lama, lalu membuat list pasien
-     * bertahap usia (pasien++) yang mencakup seluruh rentang usia Rentang Umur.pdf.
+     * Membersihkan seluruh data sesi dan pasien lama, lalu menyiapkan:
+     * 100% 176 anak riil UPTD Balai Layanan Kesehatan Anak Berkebutuhan Khusus Balikpapan
+     * dari register resmi bulan Oktober 2026 (tanpa data pasien dummy).
      */
     public function run(): void
     {
-        $parentGuardian = ParentGuardian::whereHas('user', function ($query) {
-            $query->where('email', 'orangtua@spk.test');
-        })->firstOrFail();
-
         $today = CarbonImmutable::today();
 
         // 1. Bersihkan seluruh sesi skrining dan data pasien lama
@@ -44,133 +44,61 @@ class PatientSeeder extends Seeder
             Patient::query()->delete();
         });
 
-        // 2. Daftar pasien bertahap usia (pasien++) mencakup seluruh rentang usia Rentang Umur.pdf
-        //    (3 bln, 6 bln, 9 bln, 12 bln, 18 bln, 24 bln, 30 bln, 36 bln, 48 bln, 60 bln, 72 bln, 84 bln, 120 bln)
-        $patientsData = [
-            [
-                'medical_record_number' => 'RM-RU-001',
-                'name' => 'Bayi Arka Pratama (Usia 3 Bulan)',
-                'birth_date' => $today->subMonths(3)->toDateString(),
-                'gender' => 'L',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-002',
-                'name' => 'Bayi Bianca Putri (Usia 6 Bulan)',
-                'birth_date' => $today->subMonths(6)->toDateString(),
-                'gender' => 'P',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-003',
-                'name' => 'Bayi Cakra Baskara (Usia 9 Bulan)',
-                'birth_date' => $today->subMonths(9)->toDateString(),
-                'gender' => 'L',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-004',
-                'name' => 'Bayi Dinda Kirana (Usia 12 Bulan / 1 Th)',
-                'birth_date' => $today->subMonths(12)->toDateString(),
-                'gender' => 'P',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-005',
-                'name' => 'Batita Elang Mahendra (Usia 18 Bulan)',
-                'birth_date' => $today->subMonths(18)->toDateString(),
-                'gender' => 'L',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-006',
-                'name' => 'Batita Farah Sabrina (Usia 24 Bulan / 2 Th)',
-                'birth_date' => $today->subMonths(24)->toDateString(),
-                'gender' => 'P',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-007',
-                'name' => 'Batita Gilang Ramadhan (Usia 30 Bulan)',
-                'birth_date' => $today->subMonths(30)->toDateString(),
-                'gender' => 'L',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-008',
-                'name' => 'Balita Hana Safira (Usia 36 Bulan / 3 Th)',
-                'birth_date' => $today->subMonths(36)->toDateString(),
-                'gender' => 'P',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-009',
-                'name' => 'Anak Irfan Syahputra (Usia 48 Bulan / 4 Th)',
-                'birth_date' => $today->subMonths(48)->toDateString(),
-                'gender' => 'L',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-010',
-                'name' => 'Anak Jessica Olivia (Usia 60 Bulan / 5 Th)',
-                'birth_date' => $today->subMonths(60)->toDateString(),
-                'gender' => 'P',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-011',
-                'name' => 'Anak Kevin Sanjaya (Usia 72 Bulan / 6 Th)',
-                'birth_date' => $today->subMonths(72)->toDateString(),
-                'gender' => 'L',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-012',
-                'name' => 'Anak Larasati Dewanti (Usia 7 Tahun / 84 Bln)',
-                'birth_date' => $today->subMonths(84)->toDateString(),
-                'gender' => 'P',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-            [
-                'medical_record_number' => 'RM-RU-013',
-                'name' => 'Anak Muhammad Rifqi (Usia 10 Tahun / 120 Bln)',
-                'birth_date' => $today->subMonths(120)->toDateString(),
-                'gender' => 'L',
-                'guardian_relationship' => 'Ibu',
-                'is_premature' => false,
-                'gestational_age_weeks' => null,
-            ],
-        ];
+        // 2. Wali akun pengujian (orangtua@spk.test)
+        $parentGuardian = ParentGuardian::whereHas('user', function ($query) {
+            $query->where('email', 'orangtua@spk.test');
+        })->firstOrFail();
 
-        foreach ($patientsData as $data) {
-            Patient::create(array_merge($data, [
-                'parent_guardian_id' => $parentGuardian->id,
-                'is_active' => true,
-            ]));
+        // 3. Wali umum untuk pasien UPTD lainnya agar dashboard orangtua@spk.test terfokus
+        $parentRole = Role::where('name', 'orang_tua')->firstOrFail();
+        $generalParentUser = User::firstOrCreate(
+            ['email' => 'wali_uptd@spk.test'],
+            [
+                'name' => 'Wali Pasien UPTD',
+                'role_id' => $parentRole->id,
+                'password' => Hash::make('password'),
+                'email_verified_at' => now(),
+            ]
+        );
+
+        $generalGuardian = ParentGuardian::firstOrCreate(
+            ['user_id' => $generalParentUser->id],
+            [
+                'phone' => '081234567890',
+                'address' => 'Balikpapan',
+            ]
+        );
+
+        // 4. Muat dan masukkan 176 data anak riil dari file register UPTD BLK-ABK
+        $jsonPath = database_path('seeders/uptd_october_data.json');
+        if (file_exists($jsonPath)) {
+            $uptdRecords = json_decode(file_get_contents($jsonPath), true);
+            if (is_array($uptdRecords)) {
+                foreach ($uptdRecords as $idx => $rec) {
+                    $mrn = sprintf('RM-%03d', $idx + 1);
+                    $birthDate = $rec['birth_date'] ?? $today->subMonths($rec['age_months'] ?? 36)->toDateString();
+
+                    // Khusus RM-002 (Chairil Rafqi Nababan, 61 Bulan) dihubungkan ke orangtua@spk.test
+                    // untuk alur pengujian kuesioner Orang Tua mandiri
+                    $isTestParentChild = ($idx === 1);
+                    $guardianId = $isTestParentChild ? $parentGuardian->id : $generalGuardian->id;
+
+                    Patient::create([
+                        'medical_record_number' => $mrn,
+                        'name' => $rec['name'],
+                        'birth_date' => $birthDate,
+                        'gender' => $rec['gender'] ?? 'L',
+                        'address' => $rec['address'] ?: 'Balikpapan',
+                        'education' => $rec['education'] ?? 'tidak_sekolah',
+                        'school_name' => $rec['school_name'] ?? null,
+                        'guardian_relationship' => $isTestParentChild ? 'Ibu' : 'Orang Tua',
+                        'is_premature' => false,
+                        'gestational_age_weeks' => null,
+                        'parent_guardian_id' => $guardianId,
+                        'is_active' => true,
+                    ]);
+                }
+            }
         }
     }
 }

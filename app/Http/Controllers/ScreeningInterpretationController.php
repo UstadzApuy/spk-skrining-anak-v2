@@ -123,14 +123,32 @@ class ScreeningInterpretationController extends Controller
                 'string',
                 'max:5000',
             ],
+            'interventions' => [
+                'nullable',
+                'array',
+            ],
+            'referral_target' => [
+                'nullable',
+                'string',
+                'max:150',
+            ],
         ]);
 
-        $screeningSession->update([
+        $updateData = [
             'doctor_id' => $doctor->id,
             'doctor_notes' => $validated['doctor_notes'] ?? $screeningSession->doctor_notes,
             'status' => 'reviewed',
             'reviewed_at' => now(),
-        ]);
+        ];
+
+        if ($request->has('interventions')) {
+            $updateData['interventions'] = $validated['interventions'];
+        }
+        if ($request->has('referral_target')) {
+            $updateData['referral_target'] = $validated['referral_target'];
+        }
+
+        $screeningSession->update($updateData);
 
         return back()->with(
             'success',

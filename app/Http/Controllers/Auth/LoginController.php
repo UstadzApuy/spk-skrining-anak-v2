@@ -40,8 +40,9 @@ class LoginController extends Controller
         }
 
         $request->session()->regenerate();
+        $request->session()->forget('url.intended');
 
-        return redirect()->intended('/dashboard');
+        return redirect()->route('dashboard');
     }
 
     /**

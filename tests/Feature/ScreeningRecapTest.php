@@ -267,6 +267,190 @@ class ScreeningRecapTest extends TestCase
             );
     }
 
+    public function test_rekapitulasi_provides_register_rows_with_sdq_and_srq(): void
+    {
+        $nurseUser = $this->createUserWithRole('perawat');
+        $nurse = Nurse::create([
+            'user_id' => $nurseUser->id,
+            'registration_number' => 'NURSE-RECAP-01',
+        ]);
+
+        $patient = $this->createPatient();
+        $session = ScreeningSession::create([
+            'patient_id' => $patient->id,
+            'nurse_id' => $nurse->id,
+            'created_by_user_id' => $nurseUser->id,
+            'screening_date' => '2026-10-15',
+            'status' => 'reviewed',
+            'age_months' => 48,
+            'case_type' => 'baru',
+            'referral_source' => 'Puskesmas',
+            'interventions' => ['ot', 'tw'],
+        ]);
+
+        \App\Models\SdqScreening::create([
+            'screening_session_id' => $session->id,
+            'total_difficulties_category' => 'abnormal',
+            'prosocial_category' => 'normal',
+            'emotional_category' => 'abnormal',
+            'conduct_category' => 'abnormal',
+            'hyperactivity_category' => 'abnormal',
+            'peer_category' => 'abnormal',
+            'total_difficulties_score' => 20,
+            'emotional_score' => 5,
+            'conduct_score' => 5,
+            'hyperactivity_score' => 5,
+            'peer_score' => 5,
+            'prosocial_score' => 8,
+            'answers' => array_fill(0, 25, 1),
+            'recommendation' => 'Perlu intervensi',
+        ]);
+
+        \App\Models\SrqScreening::create([
+            'screening_session_id' => $session->id,
+            'score' => 8,
+            'category' => 'gangguan_mental_emosional_distres',
+            'recommendation' => 'Konseling',
+            'answers' => array_fill(0, 20, 1),
+        ]);
+
+        $this->actingAs($nurseUser)
+            ->get(route('screening-recap.index', ['year' => 2026, 'month' => 10]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('registerRows', 1)
+                ->where('registerRows.0.name', $patient->name)
+                ->where('registerRows.0.sdq', 1)
+                ->where('registerRows.0.srq', 1)
+                ->where('registerRows.0.ot', 1)
+                ->where('registerRows.0.tw', 1)
+                ->where('registerTotals.sdq', 1)
+                ->where('registerTotals.srq', 1)
+            );
+    }
+
+    public function test_rekapitulasi_can_export_monthly_register_excel(): void
+    {
+        $nurseUser = $this->createUserWithRole('perawat');
+        $nurse = Nurse::create([
+            'user_id' => $nurseUser->id,
+            'registration_number' => 'NURSE-RECAP-02',
+        ]);
+
+        $patient = $this->createPatient();
+        ScreeningSession::create([
+            'patient_id' => $patient->id,
+            'nurse_id' => $nurse->id,
+            'created_by_user_id' => $nurseUser->id,
+            'screening_date' => '2026-10-15',
+            'status' => 'reviewed',
+            'age_months' => 36,
+        ]);
+
+        $response = $this->actingAs($nurseUser)
+            ->get(route('screening-recap.export', [
+                'year' => 2026,
+                'month' => 10,
+                'format' => 'excel',
+            ]));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+        $this->assertStringContainsString('Rekapitulasi_SDIDTK_UPTD_BLK_ABK_Oktober_2026.xlsx', $response->headers->get('Content-Disposition'));
+        // Pastikan konten file adalah binary OpenXML ZIP valid (Magic Number PK\x03\x04)
+        $this->assertStringStartsWith("PK\x03\x04", $response->getContent());
+    }
+
+    public function test_rekapitulasi_can_export_monthly_register_csv(): void
+    {
+        $nurseUser = $this->createUserWithRole('perawat');
+        $nurse = Nurse::create([
+            'user_id' => $nurseUser->id,
+            'registration_number' => 'NURSE-RECAP-03',
+        ]);
+
+        $patient = $this->createPatient();
+        ScreeningSession::create([
+            'patient_id' => $patient->id,
+            'nurse_id' => $nurse->id,
+            'created_by_user_id' => $nurseUser->id,
+            'screening_date' => '2026-10-15',
+            'status' => 'reviewed',
+            'age_months' => 36,
+        ]);
+
+        $response = $this->actingAs($nurseUser)
+            ->get(route('screening-recap.export', [
+                'year' => 2026,
+                'month' => 10,
+                'format' => 'csv',
+            ]));
+
+        $response->assertOk();
+        $response->assertHeader('Content-Type', 'text/csv; charset=UTF-8');
+    }
+
+    public function test_rekapitulasi_includes_only_latest_session_per_patient_in_same_month(): void
+    {
+        $nurseUser = $this->createUserWithRole('perawat');
+        $nurse = Nurse::create([
+            'user_id' => $nurseUser->id,
+            'registration_number' => 'NURSE-001',
+        ]);
+
+        $patient = $this->createPatient();
+
+        // Sesi pertama: 2 Oktober 2026 (status: draft, kpsp: meragukan)
+        $earlySession = ScreeningSession::create([
+            'patient_id' => $patient->id,
+            'nurse_id' => $nurse->id,
+            'screening_date' => '2026-10-02',
+            'age_months' => 24,
+            'status' => 'in_progress',
+            'created_by_user_id' => $nurseUser->id,
+        ]);
+        KpspScreening::create([
+            'screening_session_id' => $earlySession->id,
+            'form_age_months' => 24,
+            'answers' => array_fill(1, 10, true),
+            'score' => 7,
+            'category' => 'meragukan',
+            'domain_scores' => ['domains' => [], 'lacking_domains' => ['Gerak Kasar']],
+            'sdidtk_code' => 'M',
+        ]);
+
+        // Sesi kedua (evaluasi ulang): 16 Oktober 2026 (status: reviewed, kpsp: sesuai)
+        $latestSession = ScreeningSession::create([
+            'patient_id' => $patient->id,
+            'nurse_id' => $nurse->id,
+            'screening_date' => '2026-10-16',
+            'age_months' => 24,
+            'status' => 'reviewed',
+            'created_by_user_id' => $nurseUser->id,
+        ]);
+        KpspScreening::create([
+            'screening_session_id' => $latestSession->id,
+            'form_age_months' => 24,
+            'answers' => array_fill(1, 10, true),
+            'score' => 10,
+            'category' => 'sesuai_umur',
+            'domain_scores' => ['domains' => [], 'lacking_domains' => []],
+            'sdidtk_code' => 'S',
+        ]);
+
+        $this->actingAs($nurseUser)
+            ->get(route('screening-recap.index', [
+                'year' => 2026,
+                'month' => 10,
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/Recap')
+                ->has('registerRows', 1) // Hanya 1 baris untuk anak ini
+                ->where('registerRows.0.session_id', $latestSession->id) // Memastikan sesi terbaru yang dipakai
+            );
+    }
+
     private function createUserWithRole(string $roleName): User
     {
         $role = Role::firstOrCreate(['name' => $roleName]);

@@ -1,6 +1,7 @@
 <script setup>
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import { useTheme } from '@/Composables/useTheme';
+import TestingGuide from '@/Components/TestingGuide.vue';
 
 const { isDark, toggleTheme } = useTheme();
 
@@ -13,12 +14,6 @@ const form = useForm({
 const submit = () => {
     form.post('/login');
 };
-
-function fillAndSubmit(email) {
-    form.email = email;
-    form.password = 'password';
-    form.post('/login');
-}
 </script>
 
 <template>
@@ -65,43 +60,6 @@ function fillAndSubmit(email) {
                 </p>
             </div>
 
-            <!-- Quick Demo Login Buttons -->
-            <div class="mb-6 rounded-2xl bg-[#FAF7F0] dark:bg-[#041224]/80 p-4 border border-sand/40 dark:border-white/10 space-y-2">
-                <span class="text-2xs font-extrabold uppercase tracking-wider text-earth dark:text-sand block text-center mb-1">
-                    Login Cepat Akun Demo (1-Klik)
-                </span>
-                <div class="grid grid-cols-2 gap-2">
-                    <button
-                        type="button"
-                        :disabled="form.processing"
-                        @click="fillAndSubmit('perawat@spk.test')"
-                        class="rounded-xl bg-teal/10 dark:bg-teal/20 px-3 py-2 text-xs font-bold text-teal dark:text-teal-light hover:bg-teal hover:text-white border border-teal/30 dark:border-teal/40 transition text-center disabled:opacity-50 group shadow-2xs"
-                    >
-                        Perawat
-                        <span class="block text-2xs font-medium text-teal dark:text-sand-light/80 group-hover:text-sand-light">perawat@spk.test</span>
-                    </button>
-
-                    <button
-                        type="button"
-                        :disabled="form.processing"
-                        @click="fillAndSubmit('dokter@spk.test')"
-                        class="rounded-xl bg-forest/10 dark:bg-forest/20 px-3 py-2 text-xs font-bold text-forest dark:text-forest-light hover:bg-forest hover:text-white border border-forest/30 dark:border-forest/40 transition text-center disabled:opacity-50 group shadow-2xs"
-                    >
-                        Dokter
-                        <span class="block text-2xs font-medium text-forest dark:text-sand-light/80 group-hover:text-sand-light">dokter@spk.test</span>
-                    </button>
-                </div>
-            </div>
-
-            <div class="relative mb-6">
-                <div class="absolute inset-0 flex items-center">
-                    <div class="w-full border-t border-sand/40 dark:border-white/10" />
-                </div>
-                <div class="relative flex justify-center text-xs">
-                    <span class="bg-white dark:bg-[#071D37] px-2.5 text-gray-400 dark:text-gray-400 uppercase font-semibold text-2xs">Atau login manual</span>
-                </div>
-            </div>
-
             <form @submit.prevent="submit" class="space-y-4">
                 <div>
                     <label
@@ -134,7 +92,7 @@ function fillAndSubmit(email) {
                         for="password"
                         class="mb-1.5 block text-xs font-bold text-navy dark:text-gray-200"
                     >
-                        Password
+                        Kata Sandi
                     </label>
 
                     <input
@@ -144,7 +102,7 @@ function fillAndSubmit(email) {
                         required
                         autocomplete="current-password"
                         class="w-full rounded-xl border border-sand/60 dark:border-white/15 bg-white dark:bg-[#041224] text-navy dark:text-white dark:placeholder-gray-400 px-3.5 py-2.5 text-sm outline-none focus:border-teal focus:ring-2 focus:ring-teal/20"
-                        placeholder="Masukkan password"
+                        placeholder="Masukkan kata sandi"
                     />
 
                     <p
@@ -186,6 +144,8 @@ function fillAndSubmit(email) {
                 </Link>
             </div>
         </div>
+
+        <TestingGuide />
     </main>
 </template>
 

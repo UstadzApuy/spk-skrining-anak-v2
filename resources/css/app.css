@@ -400,17 +400,46 @@
 
 /* Print Override: Always pristine white paper for clinical documents */
 @media print {
-    html, body, .dark body {
+    @page {
+        size: A4 portrait;
+        margin: 0mm;
+    }
+
+    html,
+    html.dark,
+    body,
+    html.dark body,
+    .dark body,
+    .dark html,
+    main,
+    .dark main {
         background-color: #ffffff !important;
+        background: #ffffff !important;
+        color: #000000 !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        width: 210mm !important;
+        height: 297mm !important;
+        -webkit-print-color-adjust: exact !important;
+        print-color-adjust: exact !important;
+    }
+
+    .dark body,
+    .dark html,
+    .dark main {
+        background-color: #ffffff !important;
+        background: #ffffff !important;
         color: #000000 !important;
     }
-    .dark .bg-white {
-        background-color: #ffffff !important;
-    }
-    .dark .text-navy,
-    .dark .text-gray-900,
-    .dark .text-gray-800 {
-        color: #000000 !important;
+
+    /* In print mode, hide screen navigation, buttons and screen views */
+    aside,
+    nav,
+    header,
+    footer,
+    button,
+    #detailed-worksheets {
+        display: none !important;
     }
 
     .print-break-before,
