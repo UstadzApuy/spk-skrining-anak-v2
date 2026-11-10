@@ -1,3 +1,7 @@
+# Compose PENGEMBANGAN (artisan serve, folder di-mount).
+# Jalankan: docker compose -f compose.dev.yaml up -d
+# (Compose produksi ada di docker-compose.yml)
+
 services:
     postgres:
         image: postgres:18.6-bookworm
