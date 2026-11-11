@@ -20,4 +20,6 @@ bootstrap/cache/*.php
 *.sql
 *.backup
 *.dump
+# Dump database dipakai image db (docker/postgres/Dockerfile)
+!Database_UPTD_BLK-ABK.sql
 *.pdf

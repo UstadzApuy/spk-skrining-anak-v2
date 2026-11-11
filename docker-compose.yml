@@ -1,19 +1,21 @@
 # ════════════════════════════════════════════════════════════════
 #  SPK Skrining Anak — docker compose produksi
 #
-#  Jalankan dari root repo ini:
-#      cp .env.example .env      # lalu isi (lihat DEPLOY.md)
-#      docker compose up -d --build
+#  Variabel diisi lewat salah satu:
+#    - Portainer: Stacks > Add stack > Repository > "Environment variables"
+#    - Docker CLI: file .env di root repo (cp .env.example .env), lalu
+#                  docker compose up -d --build
+#  Daftar variabel: lihat DEPLOY.md.
 #
 #  Service:
-#    db        PostgreSQL (database SPK). Saat pertama kali, otomatis
-#              me-restore Database_UPTD_BLK-ABK.sql.
+#    db        PostgreSQL. Saat pertama kali otomatis me-restore
+#              Database_UPTD_BLK-ABK.sql.
 #    backend   Laravel (PHP-FPM)              -> 127.0.0.1:${BACKEND_PORT}  (FastCGI)
 #    frontend  Nginx (hasil build Vue + PHP)  -> ${FRONTEND_PORT}          (HTTP)
 #
-#  Terhubung ke SILKABK lewat jaringan Docker "uptd-network" (dibuat oleh
-#  compose SILKABK): membaca database SILKABK di host "silkabk-db" dan
-#  menerima login otomatis (SSO). Deploy SILKABK LEBIH DULU.
+#  Terhubung ke SILKABK lewat jaringan Docker "uptd-network" (dibuat stack
+#  SILKABK): membaca database SILKABK di host "silkabk-db" dan menerima login
+#  otomatis (SSO). Deploy stack SILKABK LEBIH DULU.
 #
 #  Compose pengembangan (artisan serve) ada di compose.dev.yaml.
 # ════════════════════════════════════════════════════════════════
@@ -22,41 +24,64 @@ name: spk-skrining
 
 services:
   db:
-    image: postgres:18-alpine
+    build:
+      context: .
+      dockerfile: docker/postgres/Dockerfile
+    pull_policy: build
     restart: unless-stopped
     environment:
       POSTGRES_DB: ${DB_DATABASE:-spk_uptd}
       POSTGRES_USER: ${DB_USERNAME:-spk_user}
-      POSTGRES_PASSWORD: ${DB_PASSWORD:?isi DB_PASSWORD di .env}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?isi DB_PASSWORD}
     volumes:
       - db-data:/var/lib/postgresql
-      - ./docker/postgres/init:/docker-entrypoint-initdb.d:ro
-      - ${DB_DUMP_FILE:-./Database_UPTD_BLK-ABK.sql}:/dumps/dump:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -h localhost -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 60
+      start_period: 30s
 
   backend:
     build:
       context: .
       dockerfile: docker/production/Dockerfile
       target: backend
-    image: spk-skrining-backend:latest
+    pull_policy: build
     restart: unless-stopped
     depends_on:
       db:
         condition: service_healthy
-    env_file: .env
     environment:
-      # Nilai yang wajib di dalam Docker (menimpa .env)
+      APP_NAME: ${APP_NAME:-SPK Skrining Anak}
+      APP_ENV: ${APP_ENV:-production}
+      APP_DEBUG: ${APP_DEBUG:-false}
+      APP_KEY: ${APP_KEY:?isi APP_KEY}
+      APP_URL: ${APP_URL:?isi APP_URL}
+      LOG_CHANNEL: stderr
+      LOG_LEVEL: ${LOG_LEVEL:-warning}
       DB_CONNECTION: pgsql
       DB_HOST: db
       DB_PORT: "5432"
-      LOG_CHANNEL: stderr
+      DB_DATABASE: ${DB_DATABASE:-spk_uptd}
+      DB_USERNAME: ${DB_USERNAME:-spk_user}
+      DB_PASSWORD: ${DB_PASSWORD}
+      SESSION_DRIVER: ${SESSION_DRIVER:-database}
+      SESSION_LIFETIME: ${SESSION_LIFETIME:-120}
+      SESSION_COOKIE: ${SESSION_COOKIE:-spk_skrining_session}
+      SESSION_SECURE_COOKIE: ${SESSION_SECURE_COOKIE:-true}
+      CACHE_STORE: ${CACHE_STORE:-database}
+      QUEUE_CONNECTION: ${QUEUE_CONNECTION:-sync}
+      MAIL_MAILER: ${MAIL_MAILER:-log}
+      # Integrasi SILKABK (login otomatis + baca database SILKABK)
+      SILKABK_URL: ${SILKABK_URL:?isi SILKABK_URL}
+      SILKABK_SSO_SECRET: ${SILKABK_SSO_SECRET:?isi SILKABK_SSO_SECRET}
       SILKABK_DB_HOST: ${SILKABK_DB_HOST:-silkabk-db}
       SILKABK_DB_PORT: ${SILKABK_DB_PORT:-5432}
+      SILKABK_DB_DATABASE: ${SILKABK_DB_DATABASE:-ta_bismillah}
+      SILKABK_DB_USERNAME: ${SILKABK_DB_USERNAME:-spk_reader}
+      SILKABK_DB_PASSWORD: ${SILKABK_DB_PASSWORD:?isi SILKABK_DB_PASSWORD}
+      # Port PHP-FPM
       FPM_PORT: ${BACKEND_PORT:-8809}
     ports:
       - "${BACKEND_BIND:-127.0.0.1}:${BACKEND_PORT:-8809}:${BACKEND_PORT:-8809}"
@@ -71,7 +96,7 @@ services:
       context: .
       dockerfile: docker/production/Dockerfile
       target: frontend
-    image: spk-skrining-frontend:latest
+    pull_policy: build
     restart: unless-stopped
     depends_on:
       - backend
@@ -85,7 +110,7 @@ volumes:
   storage:
 
 networks:
-  # Jaringan bersama SILKABK <-> SPK (dibuat oleh compose SILKABK)
+  # Jaringan bersama SILKABK <-> SPK (dibuat oleh stack SILKABK)
   uptd:
     external: true
     name: ${UPTD_NETWORK:-uptd-network}
