@@ -343,7 +343,7 @@ class ScreeningRecapController extends Controller
                 if ($inst->status === 'completed') {
                     if ($inst->instrument_code === 'KPSP') {
                         $category = $s->kpspScreening?->category;
-                    } elseif ($inst->instrument_code === 'M-CHAT') {
+                    } elseif (in_array($inst->instrument_code, ['MCHAT', 'M-CHAT'], true)) {
                         $category = $s->mchatScreening?->category;
                     } elseif ($inst->instrument_code === 'GPPH') {
                         $category = $s->gpphScreening?->category;
@@ -1358,7 +1358,7 @@ class ScreeningRecapController extends Controller
         $kpspTotal = 0; $kpspSesuai = 0; $kpspMeragukan = 0; $kpspPenyimpangan = 0;
         $kpspDomainKasar = 0; $kpspDomainHalus = 0; $kpspDomainBicara = 0; $kpspDomainSosialisasi = 0;
         $mchatTotal = 0; $mchatRendah = 0; $mchatTinggi = 0;
-        $gpphTotal = 0; $gpphNormal = 0; $gpphKemungkinan = 0;
+        $gpphTotal = 0; $gpphNormal = 0; $gpphMeragukan = 0; $gpphKemungkinan = 0;
         $sdqTotal = 0; $sdqNormal = 0; $sdqAmbang = 0; $sdqAbnormal = 0;
         $srqTotal = 0; $srqNormal = 0; $srqDistres = 0; $srqSuicideAlert = 0;
 
@@ -1405,7 +1405,8 @@ class ScreeningRecapController extends Controller
             if ($s->gpphScreening) {
                 $gpphTotal++;
                 match ($s->gpphScreening->category) {
-                    'tidak_menunjukkan_gpph' => $gpphNormal++,
+                    'normal', 'tidak_menunjukkan_gpph' => $gpphNormal++,
+                    'meragukan' => $gpphMeragukan++,
                     'kemungkinan_gpph', 'positif' => $gpphKemungkinan++,
                     default => null,
                 };
@@ -1456,7 +1457,9 @@ class ScreeningRecapController extends Controller
             ],
             'gpph' => [
                 'total' => $gpphTotal,
+                'normal' => $gpphNormal,
                 'tidak_menunjukkan_gpph' => $gpphNormal,
+                'meragukan' => $gpphMeragukan,
                 'kemungkinan_gpph' => $gpphKemungkinan,
             ],
             'sdq' => [

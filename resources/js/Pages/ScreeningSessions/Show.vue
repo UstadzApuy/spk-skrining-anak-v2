@@ -11,7 +11,7 @@ const isDeleting = ref(false);
 
 function executeDelete() {
     isDeleting.value = true;
-    router.delete(`/screening-sessions/${props.session.id}`, {
+    router.delete(`/spk/screening-sessions/${props.session.id}`, {
         onFinish: () => {
             isDeleting.value = false;
             showDeleteConfirm.value = false;
@@ -381,16 +381,18 @@ const availableResultTabs = computed(() => {
     }
     if (props.session?.gpph_screening) {
         const g = props.session.gpph_screening;
-        const isNormal = g.category === 'tidak_menunjukkan_gpph';
+        const badgeLabel = g.category === 'normal' || g.category === 'tidak_menunjukkan_gpph'
+            ? 'Normal'
+            : g.category === 'meragukan'
+            ? 'Meragukan'
+            : 'Kemungkinan GPPH';
         tabs.push({
             code: 'GPPH',
             label: 'GPPH',
             fullName: 'GPPH / ACTRS',
-            badge: isNormal ? 'Normal' : 'Positif GPPH',
+            badge: badgeLabel,
             category: g.category,
-            badgeClass: isNormal
-                ? 'bg-emerald-100 dark:bg-emerald-950/70 text-emerald-800 dark:text-emerald-200 border-emerald-300 dark:border-emerald-700'
-                : 'bg-rose-100 dark:bg-rose-950/70 text-rose-800 dark:text-rose-200 border-rose-300 dark:border-rose-700',
+            badgeClass: categoryBadgeClass(g.category),
         });
     }
     if (props.session?.sdq_screening) {
@@ -489,7 +491,7 @@ const schedulingReEval = ref(false);
 function scheduleKpspReEvaluation() {
     if (confirm('Jadwalkan sesi evaluasi ulang KPSP 14 hari ke depan untuk pasien ini?')) {
         schedulingReEval.value = true;
-        router.post(`/screening-sessions/${props.session.id}/schedule-kpsp-re-evaluation`, {}, {
+        router.post(`/spk/screening-sessions/${props.session.id}/schedule-kpsp-re-evaluation`, {}, {
             onFinish: () => {
                 schedulingReEval.value = false;
             },
@@ -498,7 +500,7 @@ function scheduleKpspReEvaluation() {
 }
 
 function submitInterpretation() {
-    interpForm.post(`/screening-sessions/${props.session.id}/interpretations`, {
+    interpForm.post(`/spk/screening-sessions/${props.session.id}/interpretations`, {
         onSuccess: () => {
             activeInterpretationCode.value = null;
         },
@@ -523,7 +525,7 @@ function toggleIntervention(code) {
 }
 
 function submitInterventions() {
-    interventionsForm.patch(`/screening-sessions/${props.session.id}/interventions`, {
+    interventionsForm.patch(`/spk/screening-sessions/${props.session.id}/interventions`, {
         preserveScroll: true,
     });
 }
@@ -538,7 +540,7 @@ function submitFinalize() {
     finalizeForm.interventions = [...interventionsForm.interventions];
     finalizeForm.referral_target = interventionsForm.referral_target;
     if (confirm('Apakah Anda yakin ingin menyelesaikan dan memfinalisasi tinjauan sesi skrining ini?')) {
-        finalizeForm.post(`/screening-sessions/${props.session.id}/finalize`);
+        finalizeForm.post(`/spk/screening-sessions/${props.session.id}/finalize`);
     }
 }
 
@@ -686,14 +688,14 @@ const referralReason = computed(() => {
             <div class="print:hidden flex items-center gap-2 text-xs font-bold text-teal">
                 <Link
                     v-if="session.patient?.id"
-                    :href="`/screening-sessions?patient_id=${session.patient.id}`"
+                    :href="`/spk/screening-sessions?patient_id=${session.patient.id}`"
                     class="inline-flex items-center gap-1 hover:text-navy transition"
                 >
                     &larr; Kembali ke Daftar Sesi Pasien
                 </Link>
                 <span v-if="session.patient?.id" class="text-sand/60">|</span>
                 <Link
-                    href="/dashboard"
+                    href="/spk/dashboard"
                     class="inline-flex items-center gap-1 text-gray-500 hover:text-navy transition"
                 >
                     Daftar Pasien (Dashboard)
@@ -830,13 +832,13 @@ const referralReason = computed(() => {
                                 <div v-if="kpsp" class="text-2xs text-gray-600 dark:text-gray-400 print:text-black flex flex-wrap gap-x-3 gap-y-0.5 pt-0.5">
                                     <span class="font-bold text-teal dark:text-teal-300 print:text-black">Skor Total: {{ kpsp.score }}/10</span>
                                     <span>&bull;</span>
-                                    <span>Gerak Kasar: {{ kpsp.domain_scores?.kasar?.score ?? '-' }}/{{ kpsp.domain_scores?.kasar?.total ?? '-' }}</span>
+                                    <span>Gerak Kasar: {{ kpsp.domain_scores?.domains?.gerak_kasar?.score ?? kpsp.domain_scores?.kasar?.score ?? '-' }}/{{ kpsp.domain_scores?.domains?.gerak_kasar?.total ?? kpsp.domain_scores?.kasar?.total ?? '-' }}</span>
                                     <span>&bull;</span>
-                                    <span>Gerak Halus: {{ kpsp.domain_scores?.halus?.score ?? '-' }}/{{ kpsp.domain_scores?.halus?.total ?? '-' }}</span>
+                                    <span>Gerak Halus: {{ kpsp.domain_scores?.domains?.gerak_halus?.score ?? kpsp.domain_scores?.halus?.score ?? '-' }}/{{ kpsp.domain_scores?.domains?.gerak_halus?.total ?? kpsp.domain_scores?.halus?.total ?? '-' }}</span>
                                     <span>&bull;</span>
-                                    <span>Bicara & Bahasa: {{ kpsp.domain_scores?.bicara?.score ?? '-' }}/{{ kpsp.domain_scores?.bicara?.total ?? '-' }}</span>
+                                    <span>Bicara & Bahasa: {{ kpsp.domain_scores?.domains?.bicara_bahasa?.score ?? kpsp.domain_scores?.bicara?.score ?? '-' }}/{{ kpsp.domain_scores?.domains?.bicara_bahasa?.total ?? kpsp.domain_scores?.bicara?.total ?? '-' }}</span>
                                     <span>&bull;</span>
-                                    <span>Sosialisasi & Kemandirian: {{ kpsp.domain_scores?.sosialisasi?.score ?? '-' }}/{{ kpsp.domain_scores?.sosialisasi?.total ?? '-' }}</span>
+                                    <span>Sosialisasi & Kemandirian: {{ kpsp.domain_scores?.domains?.sosialisasi_kemandirian?.score ?? kpsp.domain_scores?.sosialisasi?.score ?? '-' }}/{{ kpsp.domain_scores?.domains?.sosialisasi_kemandirian?.total ?? kpsp.domain_scores?.sosialisasi?.total ?? '-' }}</span>
                                 </div>
                             </div>
                         </div>
@@ -920,11 +922,14 @@ const referralReason = computed(() => {
                             <span>:</span>
                             <div class="space-y-0.5">
                                 <div v-if="gpph" class="flex flex-wrap items-center gap-x-4 gap-y-0.5">
-                                    <span :class="gpph.category === 'tidak_menunjukkan_gpph' ? 'font-black text-emerald-700 dark:text-emerald-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
-                                        {{ gpph.category === 'tidak_menunjukkan_gpph' ? '☑' : '☐' }} a. Normal
+                                    <span :class="['normal', 'tidak_menunjukkan_gpph'].includes(gpph.category) ? 'font-black text-emerald-700 dark:text-emerald-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ ['normal', 'tidak_menunjukkan_gpph'].includes(gpph.category) ? '☑' : '☐' }} a. Normal
+                                    </span>
+                                    <span :class="gpph.category === 'meragukan' ? 'font-black text-amber-700 dark:text-amber-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
+                                        {{ gpph.category === 'meragukan' ? '☑' : '☐' }} b. Meragukan
                                     </span>
                                     <span :class="gpph.category === 'kemungkinan_gpph' ? 'font-black text-rose-700 dark:text-rose-400 print:text-black print:underline' : 'text-gray-500 dark:text-gray-400 print:text-black'">
-                                        {{ gpph.category === 'kemungkinan_gpph' ? '☑' : '☐' }} b. Kemungkinan GPPH
+                                        {{ gpph.category === 'kemungkinan_gpph' ? '☑' : '☐' }} c. Kemungkinan GPPH
                                     </span>
                                     <span class="text-2xs text-gray-500 print:text-black font-semibold">(Skor: {{ gpph.score }}/30)</span>
                                 </div>
@@ -1094,7 +1099,7 @@ const referralReason = computed(() => {
                         🔄 Sesi Evaluasi Ulang (dari Sesi #{{ session.parent_session_id }})
                     </span>
                     <Link
-                        :href="`/screening-sessions/${session.parent_session_id}`"
+                        :href="`/spk/screening-sessions/${session.parent_session_id}`"
                         class="text-2xs font-bold text-amber-800 dark:text-amber-300 hover:underline"
                     >
                         Lihat Sesi Awal &rarr;
@@ -1108,7 +1113,7 @@ const referralReason = computed(() => {
                         📅 Terjadwal Evaluasi Ulang: Sesi #{{ session.re_evaluations[0].id }} ({{ formatDate(session.re_evaluations[0].screening_date) }})
                     </span>
                     <Link
-                        :href="`/screening-sessions/${session.re_evaluations[0].id}`"
+                        :href="`/spk/screening-sessions/${session.re_evaluations[0].id}`"
                         class="text-2xs font-bold text-indigo-800 dark:text-indigo-300 hover:underline"
                     >
                         Buka Sesi Evaluasi &rarr;
@@ -1236,7 +1241,7 @@ const referralReason = computed(() => {
                             >
                                 <Link
                                     v-if="inst.instrument_code === 'KPSP'"
-                                    :href="`/screening-sessions/${session.id}/kpsp`"
+                                    :href="`/spk/screening-sessions/${session.id}/kpsp`"
                                     class="rounded-xl px-3.5 py-1.5 text-xs font-bold transition shadow-xs"
                                     :class="inst.status === 'completed'
                                         ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
@@ -1247,7 +1252,7 @@ const referralReason = computed(() => {
 
                                 <Link
                                     v-else-if="inst.instrument_code === 'MCHAT'"
-                                    :href="`/screening-sessions/${session.id}/mchat`"
+                                    :href="`/spk/screening-sessions/${session.id}/mchat`"
                                     class="rounded-xl px-3.5 py-1.5 text-xs font-bold transition shadow-xs"
                                     :class="inst.status === 'completed'
                                         ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
@@ -1258,7 +1263,7 @@ const referralReason = computed(() => {
 
                                 <Link
                                     v-else-if="inst.instrument_code === 'GPPH'"
-                                    :href="`/screening-sessions/${session.id}/gpph`"
+                                    :href="`/spk/screening-sessions/${session.id}/gpph`"
                                     class="rounded-xl px-3.5 py-1.5 text-xs font-bold transition shadow-xs"
                                     :class="inst.status === 'completed'
                                         ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
@@ -1269,7 +1274,7 @@ const referralReason = computed(() => {
 
                                 <Link
                                     v-else-if="inst.instrument_code === 'SDQ'"
-                                    :href="`/screening-sessions/${session.id}/sdq`"
+                                    :href="`/spk/screening-sessions/${session.id}/sdq`"
                                     class="rounded-xl px-3.5 py-1.5 text-xs font-bold transition shadow-xs"
                                     :class="inst.status === 'completed'
                                         ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
@@ -1280,7 +1285,7 @@ const referralReason = computed(() => {
 
                                 <Link
                                     v-else-if="inst.instrument_code === 'SRQ'"
-                                    :href="`/screening-sessions/${session.id}/srq`"
+                                    :href="`/spk/screening-sessions/${session.id}/srq`"
                                     class="rounded-xl px-3.5 py-1.5 text-xs font-bold transition shadow-xs"
                                     :class="inst.status === 'completed'
                                         ? 'bg-slate-100 hover:bg-slate-200 text-slate-800 border border-slate-300'
@@ -1449,7 +1454,7 @@ const referralReason = computed(() => {
 
                         <template v-if="session.re_evaluations?.length">
                             <Link
-                                :href="`/screening-sessions/${session.re_evaluations[0].id}`"
+                                :href="`/spk/screening-sessions/${session.re_evaluations[0].id}`"
                                 class="font-bold text-indigo-700 dark:text-indigo-300 hover:underline text-2xs"
                             >
                                 Buka Sesi Evaluasi Ulang #{{ session.re_evaluations[0].id }} &rarr;
@@ -1874,7 +1879,7 @@ const referralReason = computed(() => {
                         class="rounded-lg border border-amber-300 dark:border-amber-800/60 bg-amber-50/80 dark:bg-amber-950/30 p-3.5 text-xs text-amber-900 dark:text-amber-200"
                     >
                         <span class="font-bold block">Perhatian Pemeriksa:</span>
-                        Pemeriksa mencatat keragu-raguan klinis. Sesuai panduan Kemenkes, bila pemeriksa ragu-ragu anak GPPH atau tidak, anak direkomendasikan dirujuk ke Rumah Sakit dengan fasilitas psikiatri anak/tumbuh kembang.
+                        Pemeriksa mencatat keragu-raguan klinis. Sesuai panduan SDIDTK Kemenkes RI, apabila total skor &lt; 13 namun pemeriksa merasa ragu-ragu, hasil dikategorikan <strong>Meragukan</strong> untuk dilakukan intervensi dini masalah perilaku dan emosi serta evaluasi ulang 1 bulan kemudian.
                     </div>
                 </div>
             </section>

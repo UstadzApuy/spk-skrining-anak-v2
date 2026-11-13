@@ -14,6 +14,20 @@ class ExampleTest extends TestCase
     {
         $response = $this->get('/');
 
+        $response->assertRedirect(route('login'));
+    }
+
+    public function test_login_page_returns_successful_response(): void
+    {
+        $response = $this->get(route('login'));
+
         $response->assertStatus(200);
+    }
+
+    public function test_uppercase_spk_redirects(): void
+    {
+        $response = $this->get('/SPK/login');
+
+        $response->assertRedirect('/spk/login');
     }
 }

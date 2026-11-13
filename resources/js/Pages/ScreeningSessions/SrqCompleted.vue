@@ -1,6 +1,5 @@
 <script setup>
 import { Head, Link } from '@inertiajs/vue3';
-import TestingGuide from '@/Components/TestingGuide.vue';
 
 defineProps({
     session: {
@@ -50,14 +49,12 @@ defineProps({
 
             <div class="mt-6">
                 <Link
-                    href="/dashboard"
+                    href="/spk/dashboard"
                     class="inline-flex items-center justify-center rounded-xl bg-teal px-6 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-teal-dark transition"
                 >
                     Kembali ke Dashboard
                 </Link>
             </div>
         </section>
-
-        <TestingGuide />
     </main>
 </template>

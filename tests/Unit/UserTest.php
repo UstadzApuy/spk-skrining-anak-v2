@@ -14,28 +14,28 @@ class UserTest extends TestCase
     public function test_user_has_role_returns_true_for_matching_role(): void
     {
         $role = Role::create([
-            'name' => 'administrator',
+            'name' => 'perawat',
         ]);
 
         $user = User::create([
-            'name' => 'Administrator Test',
-            'email' => 'admin@test.local',
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
             'password' => 'password',
             'role_id' => $role->id,
         ]);
 
-        $this->assertTrue($user->hasRole('administrator'));
+        $this->assertTrue($user->hasRole('perawat'));
     }
 
     public function test_user_has_role_returns_false_for_non_matching_role(): void
     {
         $role = Role::create([
-            'name' => 'administrator',
+            'name' => 'perawat',
         ]);
 
         $user = User::create([
-            'name' => 'Administrator Test',
-            'email' => 'admin@test.local',
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
             'password' => 'password',
             'role_id' => $role->id,
         ]);
@@ -46,18 +46,18 @@ class UserTest extends TestCase
     public function test_user_has_role_supports_multiple_allowed_roles(): void
     {
         $role = Role::create([
-            'name' => 'administrator',
+            'name' => 'perawat',
         ]);
 
         $user = User::create([
-            'name' => 'Administrator Test',
-            'email' => 'admin@test.local',
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
             'password' => 'password',
             'role_id' => $role->id,
         ]);
 
-        $this->assertTrue($user->hasRole('dokter', 'administrator'));
-        $this->assertFalse($user->hasRole('dokter', 'perawat'));
+        $this->assertTrue($user->hasRole('dokter', 'perawat'));
+        $this->assertFalse($user->hasRole('dokter', 'orang_tua'));
     }
 
     public function test_user_without_role_returns_false(): void
@@ -69,6 +69,6 @@ class UserTest extends TestCase
             'role_id' => null,
         ]);
 
-        $this->assertFalse($user->hasRole('administrator'));
+        $this->assertFalse($user->hasRole('perawat'));
     }
 }

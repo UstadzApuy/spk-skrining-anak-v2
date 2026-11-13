@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { useDraftAnswers } from '@/composables/useDraftAnswers';
 
 const props = defineProps({
     session: {
@@ -23,6 +24,10 @@ const form = useForm({
         { length: 20 },
         (_, index) => props.existingAnswers[index] ?? null
     ),
+});
+
+const { clearDraft } = useDraftAnswers('MCHAT', props.session.id, form, {
+    hasExistingAnswers: props.existingAnswers.length > 0,
 });
 
 const currentIndex = ref(0);
@@ -235,7 +240,9 @@ function selectAnswer(val) {
 }
 
 function submit() {
-    form.post(`/screening-sessions/${props.session.id}/mchat`);
+    form.post(`/spk/screening-sessions/${props.session.id}/mchat`, {
+        onSuccess: () => clearDraft(),
+    });
 }
 </script>
 
@@ -247,7 +254,7 @@ function submit() {
         <template #header>
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <nav class="flex items-center gap-2 text-xs font-semibold text-gray-500">
-                    <Link :href="`/screening-sessions/${session.id}`" class="text-teal hover:text-navy transition font-bold">
+                    <Link :href="`/spk/screening-sessions/${session.id}`" class="text-teal hover:text-navy transition font-bold">
                         Detail Sesi #{{ session.id }}
                     </Link>
                     <span>&rsaquo;</span>
@@ -271,7 +278,7 @@ function submit() {
             <!-- Patient Quick Pill & Back Link -->
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <Link
-                    :href="`/screening-sessions/${session.id}`"
+                    :href="`/spk/screening-sessions/${session.id}`"
                     class="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-navy transition"
                 >
                     &larr; Kembali ke Detail Sesi Skrining
@@ -563,16 +570,15 @@ function submit() {
                     <div class="rounded-xl bg-white p-4 border border-sand/30 space-y-1">
                         <span class="font-bold text-navy block">Ambang Batas Skor (Threshold)</span>
                         <p class="text-gray-600 leading-relaxed text-2xs">
-                            Skor 0–2: <strong>Risiko Rendah</strong> (Skrining ulang pada 24 bln).<br>
-                            Skor 3–7: <strong>Risiko Sedang</strong> (Lakukan wawancara M-CHAT-R/F).<br>
-                            Skor 8–20: <strong>Risiko Tinggi</strong> (Rujuk segera ke dokter spesialis).
+                            Skor 0–2: <strong>Risiko Rendah</strong> (Lanjutkan stimulasi dan jadwalkan kunjungan berikutnya).<br>
+                            Skor 3–20: <strong>Risiko Sedang-Tinggi</strong> (Rujuk ke RS tumbuh kembang level 1 untuk pemeriksaan lebih lanjut).
                         </p>
                     </div>
 
                     <div class="rounded-xl bg-white p-4 border border-sand/30 space-y-1">
-                        <span class="font-bold text-navy block">Aturan Tindak Lanjut</span>
+                        <span class="font-bold text-navy block">Aturan Pembobotan &amp; Tindak Lanjut</span>
                         <p class="text-gray-600 leading-relaxed text-2xs">
-                            Bila hasil skrining bernilai positif atau risiko sedang/tinggi, disarankan melakukan evaluasi diagnostik komprehensif tumbuh kembang anak.
+                            Jawaban <em>Tidak</em> bernilai 1 pada 17 butir umum, sedangkan butir 2, 5, dan 12 bernilai 1 jika dijawab <em>Ya</em>. Bila skor total &ge; 3, anak direkomendasikan dirujuk ke RS tumbuh kembang level 1.
                         </p>
                     </div>
 

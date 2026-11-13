@@ -79,18 +79,49 @@ const form = useForm({
     notes: '',
 });
 
-// Update otomatis case_type saat pasien dipilih
-watch(selectedPatient, (p) => {
-    if (p) {
-        if (p.sessions_count > 0) {
-            form.case_type = 'lama';
-        } else {
-            form.case_type = 'baru';
-        }
-    }
-});
+const KPSP_FORM_AGES = [3, 6, 9, 12, 15, 18, 21, 24, 30, 36, 42, 48, 54, 60, 66, 72];
 
-function calculateAgeMonths(birthDate, screeningDate) {
+function subtractAge(age, correctionMonths, correctionDays) {
+    let years = age.years;
+    let months = age.months;
+    let days = age.days - correctionDays;
+
+    if (days < 0) {
+        days += 30;
+        months--;
+    }
+
+    months -= correctionMonths;
+
+    if (months < 0) {
+        months += 12;
+        years--;
+    }
+
+    if (years < 0) {
+        return { years: 0, months: 0, days: 0 };
+    }
+
+    return { years, months, days };
+}
+
+function selectKpspFormAge(ageMonths) {
+    if (ageMonths < 3 || ageMonths > 72) {
+        return null;
+    }
+
+    let selectedAge = null;
+    for (const formAge of KPSP_FORM_AGES) {
+        if (formAge > ageMonths) {
+            break;
+        }
+        selectedAge = formAge;
+    }
+
+    return selectedAge;
+}
+
+function calculateAgeDetails(birthDate, screeningDate, isPremature = false, gestationalAgeWeeks = null) {
     if (!birthDate || !screeningDate) {
         return null;
     }
@@ -105,13 +136,44 @@ function calculateAgeMonths(birthDate, screeningDate) {
     const [birthYear, birthMonth, birthDay] = birth.split('-').map(Number);
     const [screeningYear, screeningMonth, screeningDay] = screening.split('-').map(Number);
 
-    let months = (screeningYear - birthYear) * 12 + screeningMonth - birthMonth;
+    let years = screeningYear - birthYear;
+    let months = screeningMonth - birthMonth;
+    let days = screeningDay - birthDay;
 
-    if (screeningDay < birthDay) {
+    if (days < 0) {
+        days += 30;
         months--;
     }
 
-    return months;
+    if (months < 0) {
+        months += 12;
+        years--;
+    }
+
+    let age = { years, months, days };
+    let isPrematureCorrected = false;
+
+    if (isPremature && age.years < 2 && gestationalAgeWeeks !== null && gestationalAgeWeeks !== undefined) {
+        const weeks = Number(gestationalAgeWeeks);
+        if (weeks >= 1 && weeks < 38) {
+            const correctionWeeks = 40 - weeks;
+            const correctionMonths = Math.floor(correctionWeeks / 4);
+            const correctionDays = (correctionWeeks % 4) * 7;
+            age = subtractAge(age, correctionMonths, correctionDays);
+            isPrematureCorrected = true;
+        }
+    }
+
+    const ageMonths = age.years * 12 + age.months;
+    const formSelectionMonths = ageMonths + (age.days > 16 ? 1 : 0);
+    const kpspFormAgeMonths = selectKpspFormAge(formSelectionMonths);
+
+    return {
+        age,
+        ageMonths,
+        kpspFormAgeMonths,
+        isPrematureCorrected,
+    };
 }
 
 function formatDate(value) {
@@ -126,28 +188,46 @@ const selectedPatient = computed(() => {
     ) ?? null;
 });
 
-const selectedPatientAgeMonths = computed(() => {
-    return calculateAgeMonths(
+// Update otomatis case_type saat pasien dipilih (termasuk saat preselected via URL)
+watch(
+    selectedPatient,
+    (p) => {
+        if (p) {
+            form.case_type = (p.sessions_count ?? 0) > 0 ? 'lama' : 'baru';
+        }
+    },
+    { immediate: true }
+);
+
+const selectedPatientAgeDetails = computed(() => {
+    return calculateAgeDetails(
         selectedPatient.value?.birth_date,
-        form.screening_date
+        form.screening_date,
+        Boolean(selectedPatient.value?.is_premature),
+        selectedPatient.value?.gestational_age_weeks
     );
 });
 
+const selectedPatientAgeMonths = computed(() => {
+    return selectedPatientAgeDetails.value?.ageMonths ?? null;
+});
+
 const selectedPatientAgeDisplay = computed(() => {
-    const months = selectedPatientAgeMonths.value;
-    if (months === null) return null;
-    const years = Math.floor(months / 12);
-    const remainingMonths = months % 12;
-    return `${years} tahun ${remainingMonths} bulan (${months} bulan)`;
+    const details = selectedPatientAgeDetails.value;
+    if (!details) return null;
+    const { age, ageMonths, isPrematureCorrected } = details;
+    const suffix = isPrematureCorrected ? ' - terkoreksi' : '';
+    return `${age.years} tahun ${age.months} bulan ${age.days} hari (${ageMonths} bulan${suffix})`;
 });
 
 function isInstrumentAllowed(code) {
-    const age = selectedPatientAgeMonths.value;
-    if (age === null) return false;
+    const details = selectedPatientAgeDetails.value;
+    if (!details) return false;
+    const age = details.ageMonths;
 
     switch (code) {
         case 'KPSP':
-            return age >= 3 && age <= 72;
+            return details.kpspFormAgeMonths !== null;
         case 'MCHAT':
             return age >= 16 && age <= 30;
         case 'GPPH':
@@ -162,18 +242,23 @@ function isInstrumentAllowed(code) {
 }
 
 function getInstrumentIneligibilityReason(code) {
-    const age = selectedPatientAgeMonths.value;
+    const details = selectedPatientAgeDetails.value;
     if (!form.patient_id || !form.screening_date) {
         return 'Pilih pasien dan tanggal pemeriksaan terlebih dahulu.';
     }
-    if (age === null) {
+    if (!details) {
         return 'Tanggal pemeriksaan tidak boleh sebelum tanggal lahir.';
     }
 
+    const age = details.ageMonths;
+
     switch (code) {
         case 'KPSP':
-            if (age < 3) return 'KPSP baru dapat digunakan mulai usia 3 bulan.';
-            if (age > 72) return 'KPSP hanya digunakan untuk anak hingga usia 72 bulan (6 tahun).';
+            if (details.kpspFormAgeMonths === null) {
+                return age < 3
+                    ? 'KPSP baru dapat digunakan mulai usia formulir 3 bulan.'
+                    : 'KPSP hanya digunakan untuk anak hingga usia formulir 72 bulan (6 tahun).';
+            }
             return '';
         case 'MCHAT':
             if (age < 16) return 'M-CHAT-R hanya untuk balita berusia minimal 16 bulan.';
@@ -193,11 +278,15 @@ function getInstrumentIneligibilityReason(code) {
 }
 
 // Watch age changes and prune ineligible instruments
-watch(selectedPatientAgeMonths, (newAge) => {
-    if (newAge !== null) {
-        form.instruments = form.instruments.filter((code) => isInstrumentAllowed(code));
-    }
-});
+watch(
+    selectedPatientAgeMonths,
+    (newAge) => {
+        if (newAge !== null) {
+            form.instruments = form.instruments.filter((code) => isInstrumentAllowed(code));
+        }
+    },
+    { immediate: true }
+);
 
 function toggleInstrument(code) {
     if (!isInstrumentAllowed(code)) return;
@@ -210,7 +299,7 @@ function toggleInstrument(code) {
 }
 
 const submit = () => {
-    form.post('/screening-sessions');
+    form.post('/spk/screening-sessions');
 };
 </script>
 
@@ -230,17 +319,17 @@ const submit = () => {
         </template>
 
         <div class="mx-auto max-w-5xl space-y-6">
-            <div class="flex items-center gap-2 text-xs font-bold text-teal">
+            <div class="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs font-bold text-teal">
                 <Link
                     v-if="form.patient_id"
-                    :href="`/screening-sessions?patient_id=${form.patient_id}`"
+                    :href="`/spk/screening-sessions?patient_id=${form.patient_id}`"
                     class="inline-flex items-center gap-1.5 hover:text-navy transition"
                 >
                     &larr; Kembali ke Daftar Sesi Pasien
                 </Link>
                 <span v-if="form.patient_id" class="text-sand/60">|</span>
                 <Link
-                    href="/dashboard"
+                    href="/spk/dashboard"
                     class="inline-flex items-center gap-1.5 text-gray-500 hover:text-navy transition"
                 >
                     Daftar Pasien (Dashboard)
@@ -256,7 +345,7 @@ const submit = () => {
 
             <form class="space-y-6" @submit.prevent="submit">
                 <!-- Section 1: Patient and Date -->
-                <section class="rounded-2xl bg-white p-6 shadow-xs border border-sand/40 space-y-6">
+                <section class="rounded-2xl bg-white p-4 shadow-xs border border-sand/40 space-y-6 sm:p-6">
                     <h3 class="text-base font-bold text-navy border-b border-sand/30 pb-3 flex items-center gap-2">
                         <span class="flex h-6 w-6 items-center justify-center rounded-full bg-teal text-white text-xs font-bold">1</span>
                         Identitas Pasien & Jadwal Skrining
@@ -277,7 +366,7 @@ const submit = () => {
                                 <option
                                     v-for="p in patients"
                                     :key="p.id"
-                                    :value="p.id"
+                                    :value="String(p.id)"
                                 >
                                     {{ p.name }} (RM: {{ p.medical_record_number }})
                                 </option>
@@ -384,8 +473,13 @@ const submit = () => {
                                 </span>
                             </div>
                         </div>
-                        <div v-if="selectedPatient.is_premature" class="mt-2.5 text-xs text-earth font-medium border-t border-sand/30 pt-2">
-                            Catatan Prematur: Riwayat kelahiran prematur pada usia gestasi {{ selectedPatient.gestational_age_weeks }} minggu. Koreksi usia otomatis diperhitungkan sistem untuk formulir KPSP.
+                        <div v-if="selectedPatient.is_premature || selectedPatientAgeDetails?.kpspFormAgeMonths" class="mt-2.5 text-xs text-earth font-medium border-t border-sand/30 pt-2 space-y-1">
+                            <p v-if="selectedPatient.is_premature">
+                                Catatan Prematur: Riwayat kelahiran prematur pada usia gestasi {{ selectedPatient.gestational_age_weeks }} minggu. Koreksi usia di bawah 2 tahun otomatis diterapkan sistem.
+                            </p>
+                            <p v-if="selectedPatientAgeDetails?.kpspFormAgeMonths" class="text-teal font-semibold">
+                                Kelompok Formulir KPSP Terpilih: {{ selectedPatientAgeDetails.kpspFormAgeMonths }} Bulan (aturan pembulatan SDIDTK &gt; 16 hari diterapkan otomatis).
+                            </p>
                         </div>
                     </div>
 
@@ -408,7 +502,7 @@ const submit = () => {
                 </section>
 
                 <!-- Section 2: Instrument Selection -->
-                <section class="rounded-2xl bg-white p-6 shadow-xs border border-sand/40 space-y-4">
+                <section class="rounded-2xl bg-white p-4 shadow-xs border border-sand/40 space-y-4 sm:p-6">
                     <div class="flex flex-wrap items-center justify-between gap-2 border-b border-sand/30 pb-3">
                         <h3 class="text-base font-bold text-navy flex items-center gap-2">
                             <span class="flex h-6 w-6 items-center justify-center rounded-full bg-teal text-white text-xs font-bold">2</span>
@@ -556,10 +650,10 @@ const submit = () => {
                 </section>
 
                 <!-- Actions -->
-                <div class="flex flex-wrap items-center justify-between gap-3 rounded-2xl bg-white p-5 shadow-xs border border-sand/40">
+                <div class="flex flex-col-reverse items-stretch justify-between gap-3 rounded-2xl bg-white p-4 shadow-xs border border-sand/40 sm:flex-row sm:items-center sm:p-5">
                     <Link
-                        :href="form.patient_id ? `/screening-sessions?patient_id=${form.patient_id}` : '/dashboard'"
-                        class="rounded-xl border border-sand/60 px-4 py-2 text-xs font-bold text-navy hover:bg-sand-light transition shadow-2xs"
+                        :href="form.patient_id ? `/spk/screening-sessions?patient_id=${form.patient_id}` : '/spk/dashboard'"
+                        class="rounded-xl border border-sand/60 px-4 py-2.5 text-xs font-bold text-navy hover:bg-sand-light transition shadow-2xs text-center sm:py-2"
                     >
                         Batal
                     </Link>
@@ -567,7 +661,7 @@ const submit = () => {
                     <button
                         type="submit"
                         :disabled="form.processing || !patients.length || !form.instruments.length"
-                        class="rounded-xl bg-blue-600 px-6 py-2.5 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 transition shadow-sm"
+                        class="rounded-xl bg-blue-600 px-6 py-3 text-xs font-bold text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50 transition shadow-sm sm:py-2.5"
                     >
                         {{ form.processing ? 'Menyimpan Sesi...' : 'Simpan & Mulai Sesi Skrining' }}
                     </button>

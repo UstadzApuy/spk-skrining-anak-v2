@@ -166,7 +166,7 @@ function applyFilter(override = {}) {
         }
     });
 
-    router.get('/rekapitulasi', params, {
+    router.get('/spk/rekapitulasi', params, {
         preserveState: true,
         preserveScroll: true,
     });
@@ -186,7 +186,7 @@ function exportReport(format = 'excel') {
         params.append('status', props.filters.status);
     }
 
-    window.location.href = `/rekapitulasi/export?${params.toString()}`;
+    window.location.href = `/spk/rekapitulasi/export?${params.toString()}`;
 }
 
 function printReport() {
@@ -241,9 +241,9 @@ const currentMonthLabel = computed(() => {
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <div class="flex items-center gap-2 text-2xs font-bold text-gray-500 dark:text-gray-400 mb-1">
-                        <Link href="/dashboard" class="hover:text-teal transition">Dashboard</Link>
+                        <Link href="/spk/dashboard" class="hover:text-teal transition">Dashboard</Link>
                         <span>/</span>
-                        <Link href="/screening-sessions" class="hover:text-teal transition">Sesi Skrining</Link>
+                        <Link href="/spk/screening-sessions" class="hover:text-teal transition">Sesi Skrining</Link>
                         <span>/</span>
                         <span class="text-teal font-extrabold">Rekapitulasi Bulanan</span>
                     </div>
@@ -734,7 +734,7 @@ const currentMonthLabel = computed(() => {
 
                                 <td class="px-3 py-2 border-r border-slate-200 dark:border-slate-800">
                                     <Link
-                                        :href="`/screening-sessions/${r.session_id}`"
+                                        :href="`/spk/screening-sessions/${r.session_id}`"
                                         class="font-bold text-teal-600 dark:text-teal-400 hover:underline block leading-tight"
                                     >
                                         {{ r.name }}
@@ -1062,8 +1062,12 @@ const currentMonthLabel = computed(() => {
                         </div>
                         <div class="mt-4 space-y-2.5">
                             <div class="flex items-center justify-between text-xs">
-                                <span class="text-gray-600 dark:text-gray-400 font-semibold">Bukan GPPH / Normal</span>
-                                <span class="font-black text-forest dark:text-forest-light">{{ instrumentBreakdown.gpph.tidak_menunjukkan_gpph }}</span>
+                                <span class="text-gray-600 dark:text-gray-400 font-semibold">Normal</span>
+                                <span class="font-black text-forest dark:text-forest-light">{{ instrumentBreakdown.gpph.normal ?? instrumentBreakdown.gpph.tidak_menunjukkan_gpph }}</span>
+                            </div>
+                            <div class="flex items-center justify-between text-xs">
+                                <span class="text-gray-600 dark:text-gray-400 font-semibold">Meragukan (Evaluasi 1 Bulan)</span>
+                                <span class="font-black text-amber-600 dark:text-amber-400">{{ instrumentBreakdown.gpph.meragukan ?? 0 }}</span>
                             </div>
                             <div class="flex items-center justify-between text-xs">
                                 <span class="text-gray-600 dark:text-gray-400 font-semibold">Kemungkinan GPPH (Positif)</span>

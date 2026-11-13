@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { useDraftAnswers } from '@/composables/useDraftAnswers';
 
 const props = defineProps({
     session: {
@@ -124,6 +125,10 @@ const form = useForm({
     ),
 });
 
+const { clearDraft } = useDraftAnswers('SRQ', props.session.id, form, {
+    hasExistingAnswers: props.existingAnswers.length > 0,
+});
+
 const currentIndex = ref(0);
 
 const currentQuestion = computed(() => questions[currentIndex.value] ?? {});
@@ -170,7 +175,9 @@ function selectAnswer(val) {
 }
 
 function submit() {
-    form.post(`/screening-sessions/${props.session.id}/srq`);
+    form.post(`/spk/screening-sessions/${props.session.id}/srq`, {
+        onSuccess: () => clearDraft(),
+    });
 }
 </script>
 
@@ -182,7 +189,7 @@ function submit() {
         <template #header>
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <nav class="flex items-center gap-2 text-xs font-semibold text-gray-500">
-                    <Link :href="`/screening-sessions/${session.id}`" class="text-teal hover:text-navy transition font-bold">
+                    <Link :href="`/spk/screening-sessions/${session.id}`" class="text-teal hover:text-navy transition font-bold">
                         Detail Sesi #{{ session.id }}
                     </Link>
                     <span>&rsaquo;</span>
@@ -203,7 +210,7 @@ function submit() {
             <!-- Patient Bar & Back -->
             <div class="flex flex-wrap items-center justify-between gap-3 text-xs">
                 <Link
-                    :href="`/screening-sessions/${session.id}`"
+                    :href="`/spk/screening-sessions/${session.id}`"
                     class="inline-flex items-center gap-1.5 font-bold text-gray-600 hover:text-navy transition"
                 >
                     &larr; Kembali ke Detail Sesi

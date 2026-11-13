@@ -29,7 +29,6 @@ Seluruh akun telah disiapkan secara otomatis dalam database:
 | **Perawat** | `perawat@spk.test` | `password` | `/dashboard` (Patient Selection Hub) |
 | **Orang Tua** | `orangtua@spk.test` | `password` | `/dashboard` (Portal Kuesioner Anak) |
 | **Dokter** | `dokter@spk.test` | `password` | `/dashboard` (Clinical Insight Hub) |
-| **Administrator** | `admin@spk.test` | `password` | `/dashboard` (System Administration) |
 
 ---
 

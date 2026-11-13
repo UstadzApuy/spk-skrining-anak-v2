@@ -22,8 +22,7 @@ const page = usePage();
 const user = page.props.auth.user;
 const isDoctor = computed(() => user?.role === 'dokter');
 const isNurse = computed(() => user?.role === 'perawat');
-const isAdmin = computed(() => user?.role === 'administrator');
-const isStaff = computed(() => isNurse.value || isDoctor.value || isAdmin.value);
+const isStaff = computed(() => isNurse.value || isDoctor.value);
 
 const activeTab = ref('patients'); // 'patients' | 'guardians'
 const searchQuery = ref('');
@@ -39,7 +38,7 @@ function confirmDeletePatient(patient) {
 function executeDeletePatient() {
     if (!patientToDelete.value) return;
     isDeleting.value = true;
-    router.delete(`/patients/${patientToDelete.value.id}`, {
+    router.delete(`/spk/patients/${patientToDelete.value.id}`, {
         preserveScroll: true,
         onFinish: () => {
             isDeleting.value = false;
@@ -59,7 +58,7 @@ const guardianForm = useForm({
 });
 
 function submitGuardian() {
-    guardianForm.post('/parent-guardians', {
+    guardianForm.post('/spk/parent-guardians', {
         preserveScroll: true,
         onSuccess: () => {
             guardianForm.reset();
@@ -121,7 +120,7 @@ const filteredGuardians = computed(() => {
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <div>
                     <div class="flex items-center gap-2 text-2xs font-bold text-gray-500 dark:text-gray-400 mb-1">
-                        <Link href="/dashboard" class="hover:text-teal transition">Dashboard</Link>
+                        <Link href="/spk/dashboard" class="hover:text-teal transition">Dashboard</Link>
                         <span>/</span>
                         <span class="text-teal font-extrabold">Data Pasien &amp; Wali</span>
                     </div>
@@ -150,7 +149,7 @@ const filteredGuardians = computed(() => {
 
                     <Link
                         v-if="isStaff"
-                        href="/patients/create"
+                        href="/spk/patients/create"
                         class="inline-flex items-center gap-2 rounded-xl bg-teal hover:bg-navy text-white font-extrabold px-4 py-2 text-xs shadow-xs transition active:scale-95"
                     >
                         <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -342,7 +341,7 @@ const filteredGuardians = computed(() => {
 
                                 <td class="whitespace-nowrap px-3 py-3 text-center">
                                     <Link
-                                        :href="`/screening-sessions?patient_id=${patient.id}`"
+                                        :href="`/spk/screening-sessions?patient_id=${patient.id}`"
                                         class="inline-flex items-center gap-1 text-2xs font-extrabold text-teal hover:underline"
                                         title="Buka daftar riwayat sesi anak ini"
                                     >
@@ -353,7 +352,7 @@ const filteredGuardians = computed(() => {
                                 <td class="whitespace-nowrap px-4 py-3 text-right">
                                     <div class="flex items-center justify-end gap-1.5">
                                         <Link
-                                            :href="`/screening-sessions/create?patient_id=${patient.id}`"
+                                            :href="`/spk/screening-sessions/create?patient_id=${patient.id}`"
                                             class="inline-flex items-center rounded-lg bg-teal-50 dark:bg-teal-950/40 px-2.5 py-1 text-2xs font-bold text-teal dark:text-teal-300 hover:bg-teal-100 border border-teal-200 dark:border-teal-900/50 transition"
                                             title="Mulai sesi skrining untuk pasien ini"
                                         >
@@ -361,7 +360,7 @@ const filteredGuardians = computed(() => {
                                         </Link>
 
                                         <Link
-                                            :href="`/patients/${patient.id}/edit`"
+                                            :href="`/spk/patients/${patient.id}/edit`"
                                             class="inline-flex items-center rounded-lg border border-sand/60 dark:border-white/15 bg-white dark:bg-white/10 px-2.5 py-1 text-2xs font-bold text-navy dark:text-white hover:bg-sand-light transition"
                                             title="Ubah identitas, alamat, pendidikan"
                                         >

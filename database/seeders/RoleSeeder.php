@@ -13,7 +13,6 @@ class RoleSeeder extends Seeder
     public function run(): void
     {
         $roles = [
-            'administrator',
             'perawat',
             'dokter',
             'orang_tua',
@@ -23,6 +22,11 @@ class RoleSeeder extends Seeder
             Role::firstOrCreate([
                 'name' => $role,
             ]);
+        }
+
+        $legacyAdminRole = Role::where('name', 'administrator')->first();
+        if ($legacyAdminRole && $legacyAdminRole->users()->count() === 0) {
+            $legacyAdminRole->delete();
         }
     }
 }

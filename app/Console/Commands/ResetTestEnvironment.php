@@ -78,12 +78,6 @@ class ResetTestEnvironment extends Command
                     'password',
                     'Buka antrean review Rychi Yislam Gaza (RM-003, 25 Bulan), tinjau sintesis SPK, isi kesimpulan klinis & intervensi, finalisasi, dan cetak SDIDTK.',
                 ],
-                [
-                    'Administrator',
-                    'admin@spk.test',
-                    'password',
-                    'Melihat rekapitulasi data skrining 176 anak UPTD BLK-ABK, grafik agregasi kelompok umur, dan log sistem.',
-                ],
             ]
         );
 

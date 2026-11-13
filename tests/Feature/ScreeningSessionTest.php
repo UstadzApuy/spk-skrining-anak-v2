@@ -612,5 +612,37 @@ private function createEligibleSdqSession(): array
                 ->component('ScreeningSessions/Index')
                 ->has('sessions.data', 0)
             );
+
+        // Instrument filter matching MCHAT (both 'MCHAT' and legacy 'M-CHAT')
+        $mchatPatient = $session->patient;
+        $mchatPatient->update(['birth_date' => '2024-10-11']);
+        $mchatSession = ScreeningSession::create([
+            'patient_id' => $mchatPatient->id,
+            'nurse_id' => $session->nurse_id,
+            'created_by_user_id' => $nurseUser->id,
+            'screening_date' => '2026-10-11',
+            'status' => 'draft',
+            'age_months' => 24,
+        ]);
+        $mchatSession->screeningSessionInstruments()->create([
+            'instrument_code' => 'MCHAT',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.index', ['instrument' => 'MCHAT']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/Index')
+                ->where('sessions.data.0.id', $mchatSession->id)
+            );
+
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.index', ['instrument' => 'M-CHAT']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/Index')
+                ->where('sessions.data.0.id', $mchatSession->id)
+            );
     }
 }

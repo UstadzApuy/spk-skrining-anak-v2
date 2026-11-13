@@ -1,7 +1,6 @@
 <script setup>
-import { Head, Link, useForm } from '@inertiajs/vue3';
+import { Head, useForm } from '@inertiajs/vue3';
 import { useTheme } from '@/Composables/useTheme';
-import TestingGuide from '@/Components/TestingGuide.vue';
 
 const { isDark, toggleTheme } = useTheme();
 
@@ -12,7 +11,7 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post('/login');
+    form.post('/spk/login');
 };
 </script>
 
@@ -46,9 +45,9 @@ const submit = () => {
             <div class="absolute top-0 left-0 right-0 h-1.5 bg-gradient-to-r from-ochre via-teal to-forest"></div>
 
             <div class="mb-6 text-center pt-2">
-                <Link href="/" class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-ochre to-earth text-white font-black text-xl shadow-md ring-2 ring-sand/40 mb-3 hover:scale-105 transition transform">
+                <div class="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-ochre to-earth text-white font-black text-xl shadow-md ring-2 ring-sand/40 mb-3">
                     SPK
-                </Link>
+                </div>
                 <h1 class="text-2xl font-black text-navy dark:text-white tracking-tight">
                     Masuk ke Sistem
                 </h1>
@@ -137,15 +136,7 @@ const submit = () => {
                     {{ form.processing ? 'Memproses...' : 'Masuk ke Aplikasi' }}
                 </button>
             </form>
-
-            <div class="mt-6 text-center border-t border-sand/30 dark:border-white/10 pt-4">
-                <Link href="/" class="text-xs font-bold text-teal dark:text-teal-light hover:text-navy dark:hover:text-sand transition">
-                    &larr; Kembali ke Halaman Utama
-                </Link>
-            </div>
         </div>
-
-        <TestingGuide />
     </main>
 </template>
 

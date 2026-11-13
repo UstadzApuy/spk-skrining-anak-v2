@@ -59,7 +59,7 @@ class ScreeningTestCasesSpectrumTest extends TestCase
 
         // 1. Batita 25 Bulan (RM-003: Rychi Yislam Gaza) mencoba SDQ -> ditolak (< 48 bulan)
         $p3 = Patient::where('medical_record_number', 'RM-003')->firstOrFail();
-        $resp = $this->actingAs($this->nurseUser)->post('/screening-sessions', [
+        $resp = $this->actingAs($this->nurseUser)->post(route('screening-sessions.store'), [
             'patient_id' => $p3->id,
             'screening_date' => $today,
             'instruments' => ['SDQ'],
@@ -67,7 +67,7 @@ class ScreeningTestCasesSpectrumTest extends TestCase
         $resp->assertSessionHasErrors('instruments');
 
         // 2. Batita 25 Bulan (RM-003) mencoba GPPH -> ditolak (< 36 bulan)
-        $resp2 = $this->actingAs($this->nurseUser)->post('/screening-sessions', [
+        $resp2 = $this->actingAs($this->nurseUser)->post(route('screening-sessions.store'), [
             'patient_id' => $p3->id,
             'screening_date' => $today,
             'instruments' => ['GPPH'],
@@ -76,7 +76,7 @@ class ScreeningTestCasesSpectrumTest extends TestCase
 
         // 3. Balita 37 Bulan (RM-005: Adelio Vember) mencoba M-CHAT-R -> ditolak (> 30 bulan)
         $p5 = Patient::where('medical_record_number', 'RM-005')->firstOrFail();
-        $resp3 = $this->actingAs($this->nurseUser)->post('/screening-sessions', [
+        $resp3 = $this->actingAs($this->nurseUser)->post(route('screening-sessions.store'), [
             'patient_id' => $p5->id,
             'screening_date' => $today,
             'instruments' => ['MCHAT'],
@@ -85,7 +85,7 @@ class ScreeningTestCasesSpectrumTest extends TestCase
 
         // 4. Anak 61 Bulan (RM-002: Chairil Rafqi Nababan) mencoba M-CHAT-R -> ditolak (> 30 bulan)
         $p2 = Patient::where('medical_record_number', 'RM-002')->firstOrFail();
-        $resp4 = $this->actingAs($this->nurseUser)->post('/screening-sessions', [
+        $resp4 = $this->actingAs($this->nurseUser)->post(route('screening-sessions.store'), [
             'patient_id' => $p2->id,
             'screening_date' => $today,
             'instruments' => ['MCHAT'],
@@ -117,17 +117,17 @@ class ScreeningTestCasesSpectrumTest extends TestCase
     {
         // Dokter dapat mengakses sesi reviewed dengan catatan klinis lengkap
         $sReview = ScreeningSession::where('status', 'reviewed')->firstOrFail();
-        $resp = $this->actingAs($this->doctorUser)->get("/screening-sessions/{$sReview->id}");
+        $resp = $this->actingAs($this->doctorUser)->get(route('screening-sessions.show', $sReview));
         $resp->assertOk();
         $this->assertNotEmpty($sReview->screeningInterpretations);
 
         // Dokter dapat mengakses sesi pending_doctor_review
         $sPending = ScreeningSession::where('status', 'pending_doctor_review')->firstOrFail();
-        $resp = $this->actingAs($this->doctorUser)->get("/screening-sessions/{$sPending->id}");
+        $resp = $this->actingAs($this->doctorUser)->get(route('screening-sessions.show', $sPending));
         $resp->assertOk();
 
         // Perawat dapat melihat sesi milik pasien
-        $respNurse = $this->actingAs($this->nurseUser)->get("/screening-sessions/{$sReview->id}");
+        $respNurse = $this->actingAs($this->nurseUser)->get(route('screening-sessions.show', $sReview));
         $respNurse->assertOk();
     }
 }

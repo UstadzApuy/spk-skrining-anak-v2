@@ -226,7 +226,7 @@ const remainingHeroCount = computed(() => {
                         <!-- Action buttons & avatar stack -->
                         <div class="flex flex-wrap items-center gap-3 pt-2">
                             <Link
-                                href="/patients/create"
+                                href="/spk/patients/create"
                                 class="inline-flex items-center gap-2 rounded-xl bg-ochre hover:bg-ochre-light text-navy font-extrabold px-4 py-2.5 text-xs shadow-md transition ring-1 ring-sand/40"
                             >
                                 <svg class="h-4 w-4 text-navy" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -236,7 +236,7 @@ const remainingHeroCount = computed(() => {
                             </Link>
 
                             <Link
-                                href="/patients"
+                                href="/spk/patients"
                                 class="inline-flex items-center gap-2 rounded-xl bg-white/15 hover:bg-white/25 text-white font-extrabold px-4 py-2.5 text-xs shadow-md transition border border-white/20 backdrop-blur-xs"
                             >
                                 <svg class="h-4 w-4 text-sand" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -546,7 +546,7 @@ const remainingHeroCount = computed(() => {
                         <!-- Direct link to THIS patient's screening sessions list -->
                         <div>
                             <Link
-                                :href="`/screening-sessions?patient_id=${patient.id}`"
+                                :href="`/spk/screening-sessions?patient_id=${patient.id}`"
                                 class="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-3 py-1.5 text-xs font-bold text-white hover:bg-blue-700 shadow-xs transition"
                             >
                                 Lihat Sesi Skrining &rarr;
@@ -579,7 +579,7 @@ const remainingHeroCount = computed(() => {
                 <!-- Create New Profile Dashed Card (Visily UI #1 - Tampil di halaman terakhir atau saat kosong) -->
                 <Link
                     v-if="currentPage === totalPages || filteredPatients.length === 0"
-                    href="/patients/create"
+                    href="/spk/patients/create"
                     class="group flex min-h-[170px] flex-col items-center justify-center rounded-2xl border-2 border-dashed border-sand/80 dark:border-white/20 p-6 text-center transition hover:border-teal dark:hover:border-teal hover:bg-sand-light/50 dark:hover:bg-white/5"
                 >
                     <div class="flex h-12 w-12 items-center justify-center rounded-full bg-sand/20 dark:bg-white/10 text-teal dark:text-sand group-hover:bg-teal group-hover:text-white transition mb-2">

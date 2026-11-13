@@ -17,20 +17,17 @@ class UserSeeder extends Seeder
      */
     public function run(): void
     {
-        $administratorRole = Role::where('name', 'administrator')->firstOrFail();
         $nurseRole = Role::where('name', 'perawat')->firstOrFail();
         $doctorRole = Role::where('name', 'dokter')->firstOrFail();
         $parentRole = Role::where('name', 'orang_tua')->firstOrFail();
 
-        $admin = User::updateOrCreate(
-            ['email' => 'admin@spk.test'],
-            [
-                'name' => 'Administrator',
-                'role_id' => $administratorRole->id,
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
+        $legacyAdmin = User::where('email', 'admin@spk.test')->first();
+        if (
+            $legacyAdmin
+            && ! \App\Models\ScreeningSession::where('created_by_user_id', $legacyAdmin->id)->exists()
+        ) {
+            $legacyAdmin->delete();
+        }
 
         $nurse = User::updateOrCreate(
             ['email' => 'perawat@spk.test'],

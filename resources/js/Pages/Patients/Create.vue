@@ -24,7 +24,7 @@ const form = useForm({
 });
 
 const submit = () => {
-    form.post('/patients');
+    form.post('/spk/patients');
 };
 </script>
 
@@ -35,9 +35,9 @@ const submit = () => {
         <template #header>
             <div class="space-y-2">
                 <div class="flex items-center gap-2 text-2xs font-bold text-gray-500 mb-1">
-                    <Link href="/dashboard" class="hover:text-teal transition">Dashboard</Link>
+                    <Link href="/spk/dashboard" class="hover:text-teal transition">Dashboard</Link>
                     <span>/</span>
-                    <Link href="/patients" class="hover:text-teal transition">Data Pasien &amp; Wali</Link>
+                    <Link href="/spk/patients" class="hover:text-teal transition">Data Pasien &amp; Wali</Link>
                     <span>/</span>
                     <span class="text-teal font-extrabold">Tambah Pasien</span>
                 </div>
@@ -303,7 +303,7 @@ const submit = () => {
                                     Pilih Akun Orang Tua/Wali <span class="text-rose-600">*</span>
                                 </label>
                                 <Link
-                                    href="/patients"
+                                    href="/spk/patients"
                                     class="text-3xs font-extrabold text-teal hover:underline"
                                     title="Tambah data wali baru di Tab Orang Tua / Wali"
                                 >
@@ -358,7 +358,7 @@ const submit = () => {
                 <!-- Tombol Aksi -->
                 <div class="flex items-center justify-between gap-3 border-t border-sand/40 pt-6">
                     <Link
-                        href="/patients"
+                        href="/spk/patients"
                         class="rounded-xl border border-sand/60 px-4 py-2.5 text-xs font-bold text-navy hover:bg-sand-light transition shadow-2xs"
                     >
                         Batal

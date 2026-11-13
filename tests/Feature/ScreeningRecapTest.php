@@ -59,18 +59,6 @@ class ScreeningRecapTest extends TestCase
             );
     }
 
-    public function test_administrator_can_access_rekapitulasi_page(): void
-    {
-        $adminUser = $this->createUserWithRole('administrator');
-
-        $this->actingAs($adminUser)
-            ->get(route('screening-recap.index'))
-            ->assertOk()
-            ->assertInertia(fn (Assert $page) => $page
-                ->component('ScreeningSessions/Recap')
-            );
-    }
-
     public function test_parent_cannot_access_rekapitulasi_page(): void
     {
         $parentUser = $this->createUserWithRole('orang_tua');
@@ -448,6 +436,90 @@ class ScreeningRecapTest extends TestCase
                 ->component('ScreeningSessions/Recap')
                 ->has('registerRows', 1) // Hanya 1 baris untuk anak ini
                 ->where('registerRows.0.session_id', $latestSession->id) // Memastikan sesi terbaru yang dipakai
+            );
+    }
+
+    public function test_rekapitulasi_counts_gpph_normal_meragukan_and_kemungkinan_accurately_and_maps_mchat(): void
+    {
+        $nurseUser = $this->createUserWithRole('perawat');
+        $nurse = Nurse::create([
+            'user_id' => $nurseUser->id,
+            'registration_number' => 'NURSE-GPPH-01',
+        ]);
+
+        $patient1 = $this->createPatient();
+        $patient2 = $this->createPatient();
+        $patient3 = $this->createPatient();
+
+        $normalSession = ScreeningSession::create([
+            'patient_id' => $patient1->id,
+            'nurse_id' => $nurse->id,
+            'created_by_user_id' => $nurseUser->id,
+            'screening_date' => '2026-10-05',
+            'status' => 'reviewed',
+            'age_months' => 48,
+        ]);
+        \App\Models\GpphScreening::create([
+            'screening_session_id' => $normalSession->id,
+            'answers' => array_fill(0, 10, 0),
+            'score' => 0,
+            'category' => 'normal',
+            'examiner_doubtful' => false,
+            'recommendation' => 'Normal.',
+        ]);
+
+        $doubtfulSession = ScreeningSession::create([
+            'patient_id' => $patient2->id,
+            'nurse_id' => $nurse->id,
+            'created_by_user_id' => $nurseUser->id,
+            'screening_date' => '2026-10-06',
+            'status' => 'reviewed',
+            'age_months' => 48,
+        ]);
+        \App\Models\GpphScreening::create([
+            'screening_session_id' => $doubtfulSession->id,
+            'answers' => array_fill(0, 10, 1),
+            'score' => 10,
+            'category' => 'meragukan',
+            'examiner_doubtful' => true,
+            'recommendation' => 'Evaluasi ulang.',
+        ]);
+
+        $mchatSession = ScreeningSession::create([
+            'patient_id' => $patient3->id,
+            'nurse_id' => $nurse->id,
+            'created_by_user_id' => $nurseUser->id,
+            'screening_date' => '2026-10-07',
+            'status' => 'reviewed',
+            'age_months' => 24,
+        ]);
+        ScreeningSessionInstrument::create([
+            'screening_session_id' => $mchatSession->id,
+            'instrument_code' => 'MCHAT',
+            'status' => 'completed',
+        ]);
+        \App\Models\MchatScreening::create([
+            'screening_session_id' => $mchatSession->id,
+            'answers' => array_fill(0, 20, true),
+            'score' => 3,
+            'category' => 'risiko_sedang_tinggi',
+            'recommendation' => 'Rujuk.',
+        ]);
+
+        $this->actingAs($nurseUser)
+            ->get(route('screening-recap.index', [
+                'year' => 2026,
+                'month' => 10,
+            ]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('instrumentBreakdown.gpph.total', 2)
+                ->where('instrumentBreakdown.gpph.normal', 1)
+                ->where('instrumentBreakdown.gpph.tidak_menunjukkan_gpph', 1)
+                ->where('instrumentBreakdown.gpph.meragukan', 1)
+                ->where('instrumentBreakdown.gpph.kemungkinan_gpph', 0)
+                ->where('sessions.2.instruments.0.code', 'MCHAT')
+                ->where('sessions.2.instruments.0.category', 'risiko_sedang_tinggi')
             );
     }
 

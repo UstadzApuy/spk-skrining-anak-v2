@@ -70,7 +70,7 @@ function applyFilters(overrides = {}) {
         }
     });
 
-    router.get('/screening-sessions', params, {
+    router.get('/spk/screening-sessions', params, {
         preserveState: true,
         preserveScroll: true,
     });
@@ -151,7 +151,7 @@ function confirmDelete(session) {
 function executeDelete() {
     if (!sessionToDelete.value) return;
     isDeleting.value = true;
-    router.delete(`/screening-sessions/${sessionToDelete.value.id}`, {
+    router.delete(`/spk/screening-sessions/${sessionToDelete.value.id}`, {
         preserveScroll: true,
         onFinish: () => {
             isDeleting.value = false;
@@ -255,7 +255,7 @@ function getInstrumentBadge(session, inst) {
         };
     }
 
-    if (code === 'M-CHAT') {
+    if (code === 'MCHAT' || code === 'M-CHAT') {
         const cat = session.mchat_screening?.category;
         if (cat === 'risiko_sedang_tinggi') {
             return {
@@ -389,7 +389,7 @@ function sessionHasAlert(session) {
                 <!-- Back Link to Patient Selection Dashboard if filtering per patient -->
                 <div v-if="selectedPatient">
                     <Link
-                        href="/screening-sessions"
+                        href="/spk/screening-sessions"
                         class="inline-flex items-center gap-1.5 text-xs font-bold text-teal dark:text-teal-400 hover:text-navy dark:hover:text-white transition"
                     >
                         <svg class="h-3.5 w-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -416,7 +416,7 @@ function sessionHasAlert(session) {
                     <!-- Actions -->
                     <div class="flex items-center gap-2.5">
                         <Link
-                            href="/rekapitulasi"
+                            href="/spk/rekapitulasi"
                             class="inline-flex items-center gap-1.5 rounded-xl border border-sand/60 dark:border-white/10 bg-white dark:bg-white/10 px-3.5 py-2 text-xs font-bold text-navy dark:text-white hover:bg-sand-light dark:hover:bg-white/15 transition shadow-2xs"
                         >
                             <svg class="h-4 w-4 text-teal" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -427,7 +427,7 @@ function sessionHasAlert(session) {
 
                         <Link
                             v-if="isNurse && selectedPatient"
-                            :href="`/screening-sessions/create?patient_id=${selectedPatient.id}`"
+                            :href="`/spk/screening-sessions/create?patient_id=${selectedPatient.id}`"
                             class="inline-flex items-center gap-2 rounded-xl bg-teal px-4 py-2 text-xs font-bold text-white hover:bg-navy transition shadow-xs"
                         >
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -438,7 +438,7 @@ function sessionHasAlert(session) {
 
                         <Link
                             v-else-if="isNurse"
-                            href="/dashboard"
+                            href="/spk/dashboard"
                             class="inline-flex items-center gap-2 rounded-xl bg-teal px-4 py-2 text-xs font-bold text-white hover:bg-navy transition shadow-xs"
                         >
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -673,7 +673,7 @@ function sessionHasAlert(session) {
                         >
                             <option value="">Semua Instrumen</option>
                             <option value="KPSP">KPSP (Perkembangan)</option>
-                            <option value="M-CHAT">M-CHAT-R (Autisme)</option>
+                            <option value="MCHAT">M-CHAT-R (Autisme)</option>
                             <option value="GPPH">GPPH (Perilaku/Hiperaktif)</option>
                             <option value="SDQ">SDQ (Kekuatan & Kesulitan)</option>
                             <option value="SRQ">SRQ-20 (Kesehatan Emosional)</option>
@@ -864,7 +864,7 @@ function sessionHasAlert(session) {
                                 <td class="whitespace-nowrap px-5 py-3.5 text-right">
                                     <div class="flex items-center justify-end gap-1.5">
                                         <Link
-                                            :href="`/screening-sessions/${session.id}`"
+                                            :href="`/spk/screening-sessions/${session.id}`"
                                             class="inline-flex items-center gap-1 rounded-lg bg-teal hover:bg-navy px-3 py-1.5 text-xs font-bold text-white transition shadow-2xs"
                                         >
                                             Buka Hasil &rarr;
@@ -926,7 +926,7 @@ function sessionHasAlert(session) {
 
                     <div v-else-if="isNurse && selectedPatient" class="mt-5">
                         <Link
-                            :href="`/screening-sessions/create?patient_id=${selectedPatient.id}`"
+                            :href="`/spk/screening-sessions/create?patient_id=${selectedPatient.id}`"
                             class="inline-flex items-center gap-2 rounded-xl bg-teal px-5 py-2.5 text-xs font-bold text-white hover:bg-navy transition shadow-sm"
                         >
                             <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">

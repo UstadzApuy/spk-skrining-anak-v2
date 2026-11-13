@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue';
 import { Head, Link, useForm } from '@inertiajs/vue3';
 import AuthenticatedLayout from '@/Layouts/AuthenticatedLayout.vue';
+import { useDraftAnswers } from '@/composables/useDraftAnswers';
 
 const props = defineProps({
     session: {
@@ -134,6 +135,11 @@ const form = useForm({
     examiner_doubtful: props.existingExaminerDoubtful,
 });
 
+const { clearDraft } = useDraftAnswers('GPPH', props.session.id, form, {
+    hasExistingAnswers: props.existingAnswers.length > 0,
+    extraKeys: ['examiner_doubtful'],
+});
+
 const currentIndex = ref(0);
 
 const currentQuestionText = computed(() => props.questions[currentIndex.value] ?? '');
@@ -181,7 +187,9 @@ function selectAnswer(val) {
 }
 
 function submit() {
-    form.post(`/screening-sessions/${props.session.id}/gpph`);
+    form.post(`/spk/screening-sessions/${props.session.id}/gpph`, {
+        onSuccess: () => clearDraft(),
+    });
 }
 </script>
 
@@ -193,7 +201,7 @@ function submit() {
         <template #header>
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <nav class="flex items-center gap-2 text-xs font-semibold text-gray-500">
-                    <Link :href="`/screening-sessions/${session.id}`" class="text-teal hover:text-navy transition font-bold">
+                    <Link :href="`/spk/screening-sessions/${session.id}`" class="text-teal hover:text-navy transition font-bold">
                         Detail Sesi #{{ session.id }}
                     </Link>
                     <span>&rsaquo;</span>
@@ -217,7 +225,7 @@ function submit() {
             <!-- Patient Quick Pill & Back Link -->
             <div class="flex flex-wrap items-center justify-between gap-4">
                 <Link
-                    :href="`/screening-sessions/${session.id}`"
+                    :href="`/spk/screening-sessions/${session.id}`"
                     class="inline-flex items-center gap-1.5 text-xs font-bold text-gray-600 hover:text-navy transition"
                 >
                     &larr; Kembali ke Detail Sesi Skrining
@@ -492,15 +500,15 @@ function submit() {
                         <span class="font-bold text-navy block">Ambang Batas Skor (Threshold)</span>
                         <p class="text-gray-600 leading-relaxed text-2xs">
                             Total Skor &ge; 13: <strong>Kemungkinan GPPH</strong>.<br>
-                            Total Skor &lt; 13 & ragu: <strong>Kemungkinan GPPH (Ragu)</strong>.<br>
-                            Total Skor &lt; 13 & tidak ragu: <strong>Bukan GPPH</strong>.
+                            Total Skor &lt; 13 &amp; ragu: <strong>Meragukan</strong>.<br>
+                            Total Skor &lt; 13 &amp; tidak ragu: <strong>Normal</strong>.
                         </p>
                     </div>
 
                     <div class="rounded-xl bg-white p-4 border border-sand/30 space-y-1">
                         <span class="font-bold text-navy block">Aturan Tindak Lanjut</span>
                         <p class="text-gray-600 leading-relaxed text-2xs">
-                            Anak dengan kemungkinan GPPH perlu dirujuk ke Rumah Sakit / Klinik Tumbuh Kembang untuk pemeriksaan mendalam oleh Dokter Spesialis Anak atau Psikiater Anak.
+                            Kategori <strong>Kemungkinan GPPH</strong> dirujuk ke RS tumbuh kembang level 1. Kategori <strong>Meragukan</strong> dilakukan intervensi dini perilaku/emosi dan evaluasi ulang 1 bulan kemudian dengan buku SDIDTK.
                         </p>
                     </div>
 

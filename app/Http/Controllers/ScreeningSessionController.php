@@ -83,10 +83,13 @@ class ScreeningSessionController extends Controller
 
         // 3. Filter Instrumen
         $instrument = $request->query('instrument');
-        if ($instrument && in_array($instrument, ['KPSP', 'M-CHAT', 'GPPH', 'SDQ', 'SRQ'], true)) {
-            $query->whereHas('screeningSessionInstruments', function ($iq) use ($instrument) {
-                $iq->where('instrument_code', $instrument);
-            });
+        if ($instrument) {
+            $normalizedInstrument = $instrument === 'M-CHAT' ? 'MCHAT' : $instrument;
+            if (in_array($normalizedInstrument, ['KPSP', 'MCHAT', 'GPPH', 'SDQ', 'SRQ'], true)) {
+                $query->whereHas('screeningSessionInstruments', function ($iq) use ($normalizedInstrument) {
+                    $iq->where('instrument_code', $normalizedInstrument);
+                });
+            }
         }
 
         // 4. Filter Rentang Tanggal
@@ -145,6 +148,7 @@ class ScreeningSessionController extends Controller
         $patients = Patient::query()
             ->where('is_active', true)
             ->with('parentGuardian.user:id,name')
+            ->withCount('screeningSessions as sessions_count')
             ->orderBy('name')
             ->get([
                 'id',
@@ -232,8 +236,6 @@ class ScreeningSessionController extends Controller
         Request $request,
         KpspAgeCalculator $ageCalculator
     ): RedirectResponse {
-        $isDoctor = $request->user()->hasRole('dokter');
-
         $rules = [
             'patient_id' => [
                 'required',
@@ -280,29 +282,17 @@ class ScreeningSessionController extends Controller
             ],
         ];
 
-        if ($isDoctor) {
-            $rules['nurse_id'] = [
-                'required',
-                'integer',
-                Rule::exists('nurses', 'id'),
-            ];
-        }
-
         $validated = $request->validate($rules);
 
-        if ($isDoctor) {
-            $nurseId = (int) $validated['nurse_id'];
-        } else {
-            $nurse = $request->user()->nurse;
+        $nurse = $request->user()->nurse;
 
-            abort_unless(
-                $nurse,
-                403,
-                'Akun perawat belum memiliki profil perawat.'
-            );
+        abort_unless(
+            $nurse,
+            403,
+            'Akun perawat belum memiliki profil perawat.'
+        );
 
-            $nurseId = (int) $nurse->id;
-        }
+        $nurseId = (int) $nurse->id;
 
         $patient = Patient::findOrFail($validated['patient_id']);
 
@@ -395,12 +385,10 @@ class ScreeningSessionController extends Controller
         }
 
         $creatorId = (int) $request->user()->id;
-        $doctorId = $isDoctor ? $request->user()->doctor?->id : null;
 
         $session = DB::transaction(function () use (
             $validated,
             $nurseId,
-            $doctorId,
             $ageResult,
             $creatorId
         ): ScreeningSession {
@@ -410,7 +398,7 @@ class ScreeningSessionController extends Controller
             $session = new ScreeningSession([
                 'patient_id' => $validated['patient_id'],
                 'nurse_id' => $nurseId,
-                'doctor_id' => $doctorId,
+                'doctor_id' => null,
                 'screening_date' => $validated['screening_date'],
                 'status' => 'draft',
                 'notes' => $validated['notes'] ?? null,

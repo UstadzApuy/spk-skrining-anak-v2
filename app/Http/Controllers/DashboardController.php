@@ -19,7 +19,6 @@ class DashboardController extends Controller
         $role = $request->user()->role?->name;
 
         $page = match ($role) {
-            'administrator' => 'Dashboard/Administrator',
             'perawat' => 'Dashboard/Perawat',
             'dokter' => 'Dashboard/Dokter',
             'orang_tua' => 'Dashboard/OrangTua',

@@ -11,11 +11,6 @@ class DashboardTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_administrator_is_redirected_to_administrator_dashboard(): void
-    {
-        $this->assertDashboardComponentForRole('administrator', 'Dashboard/Administrator');
-    }
-
     public function test_perawat_is_redirected_to_perawat_dashboard(): void
     {
         $this->assertDashboardComponentForRole('perawat', 'Dashboard/Perawat');

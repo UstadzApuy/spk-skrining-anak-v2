@@ -16,7 +16,7 @@ class LoginTest extends TestCase
         parent::setUp();
 
         Role::create([
-            'name' => 'administrator',
+            'name' => 'perawat',
         ]);
     }
 
@@ -30,10 +30,10 @@ class LoginTest extends TestCase
     public function test_user_can_login_with_valid_credentials(): void
     {
         $user = User::create([
-            'name' => 'Administrator Test',
-            'email' => 'admin@test.local',
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
             'password' => 'password',
-            'role_id' => Role::where('name', 'administrator')->value('id'),
+            'role_id' => Role::where('name', 'perawat')->value('id'),
         ]);
 
         $response = $this->post(route('login.store'), [
@@ -48,14 +48,14 @@ class LoginTest extends TestCase
     public function test_user_cannot_login_with_invalid_credentials(): void
     {
         User::create([
-            'name' => 'Administrator Test',
-            'email' => 'admin@test.local',
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
             'password' => 'password',
-            'role_id' => Role::where('name', 'administrator')->value('id'),
+            'role_id' => Role::where('name', 'perawat')->value('id'),
         ]);
 
         $response = $this->from(route('login'))->post(route('login.store'), [
-            'email' => 'admin@test.local',
+            'email' => 'perawat@test.local',
             'password' => 'wrong-password',
         ]);
 
@@ -67,10 +67,10 @@ class LoginTest extends TestCase
     public function test_authenticated_user_can_access_dashboard(): void
     {
         $user = User::create([
-            'name' => 'Administrator Test',
-            'email' => 'admin@test.local',
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
             'password' => 'password',
-            'role_id' => Role::where('name', 'administrator')->value('id'),
+            'role_id' => Role::where('name', 'perawat')->value('id'),
         ]);
 
         $this->actingAs($user);
@@ -91,17 +91,17 @@ class LoginTest extends TestCase
     public function test_authenticated_user_can_logout(): void
     {
         $user = User::create([
-            'name' => 'Administrator Test',
-            'email' => 'admin@test.local',
+            'name' => 'Perawat Test',
+            'email' => 'perawat@test.local',
             'password' => 'password',
-            'role_id' => Role::where('name', 'administrator')->value('id'),
+            'role_id' => Role::where('name', 'perawat')->value('id'),
         ]);
 
         $this->actingAs($user);
 
         $response = $this->post(route('logout'));
 
-        $response->assertRedirect('/');
+        $response->assertRedirect(route('login'));
         $this->assertGuest();
     }
 }
