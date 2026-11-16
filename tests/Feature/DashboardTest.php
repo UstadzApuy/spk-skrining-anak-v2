@@ -21,9 +21,22 @@ class DashboardTest extends TestCase
         $this->assertDashboardComponentForRole('dokter', 'Dashboard/Dokter');
     }
 
-    public function test_orang_tua_is_redirected_to_orang_tua_dashboard(): void
+    public function test_orang_tua_cannot_access_dashboard(): void
     {
-        $this->assertDashboardComponentForRole('orang_tua', 'Dashboard/OrangTua');
+        $role = Role::create([
+            'name' => 'orang_tua',
+        ]);
+
+        $user = User::create([
+            'name' => 'Wali Pasien Test',
+            'email' => 'orang_tua@test.local',
+            'password' => 'password',
+            'role_id' => $role->id,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('dashboard'))
+            ->assertForbidden();
     }
 
     private function assertDashboardComponentForRole(

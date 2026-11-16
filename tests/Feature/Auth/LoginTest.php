@@ -104,4 +104,27 @@ class LoginTest extends TestCase
         $response->assertRedirect(route('login'));
         $this->assertGuest();
     }
+
+    public function test_orang_tua_role_cannot_login(): void
+    {
+        $parentRole = Role::create([
+            'name' => 'orang_tua',
+        ]);
+
+        $user = User::create([
+            'name' => 'Wali Pasien',
+            'email' => 'wali@test.local',
+            'password' => 'password',
+            'role_id' => $parentRole->id,
+        ]);
+
+        $response = $this->from(route('login'))->post(route('login.store'), [
+            'email' => $user->email,
+            'password' => 'password',
+        ]);
+
+        $response->assertRedirect(route('login'));
+        $response->assertSessionHasErrors('email');
+        $this->assertGuest();
+    }
 }

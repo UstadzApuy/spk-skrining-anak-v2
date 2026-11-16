@@ -3,7 +3,6 @@
 namespace Database\Seeders;
 
 use App\Models\Doctor;
-use App\Models\ParentGuardian;
 use App\Models\Role;
 use App\Models\User;
 use App\Models\Nurse;
@@ -19,7 +18,6 @@ class UserSeeder extends Seeder
     {
         $nurseRole = Role::where('name', 'perawat')->firstOrFail();
         $doctorRole = Role::where('name', 'dokter')->firstOrFail();
-        $parentRole = Role::where('name', 'orang_tua')->firstOrFail();
 
         $legacyAdmin = User::where('email', 'admin@spk.test')->first();
         if (
@@ -27,6 +25,15 @@ class UserSeeder extends Seeder
             && ! \App\Models\ScreeningSession::where('created_by_user_id', $legacyAdmin->id)->exists()
         ) {
             $legacyAdmin->delete();
+        }
+
+        $legacyParent = User::where('email', 'orangtua@spk.test')->first();
+        if (
+            $legacyParent
+            && (! $legacyParent->parentGuardian || ! $legacyParent->parentGuardian->patients()->exists())
+        ) {
+            $legacyParent->parentGuardian?->delete();
+            $legacyParent->delete();
         }
 
         $nurse = User::updateOrCreate(
@@ -60,24 +67,6 @@ class UserSeeder extends Seeder
             ['user_id' => $doctor->id],
             [
                 'specialization' => 'Dokter Anak',
-            ]
-        );
-
-        $parent = User::updateOrCreate(
-            ['email' => 'orangtua@spk.test'],
-            [
-                'name' => 'Orang Tua Uji',
-                'role_id' => $parentRole->id,
-                'password' => Hash::make('password'),
-                'email_verified_at' => now(),
-            ]
-        );
-
-        ParentGuardian::updateOrCreate(
-            ['user_id' => $parent->id],
-            [
-                'phone' => '080000000000',
-                'address' => 'Data development',
             ]
         );
     }

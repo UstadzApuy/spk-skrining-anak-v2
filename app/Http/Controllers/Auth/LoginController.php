@@ -30,14 +30,26 @@ class LoginController extends Controller
         ]);
 
         $remember = $request->boolean('remember');
+        $provider = Auth::getProvider();
+        $user = $provider->retrieveByCredentials($credentials);
 
-        if (! Auth::attempt($credentials, $remember)) {
+        if (! $user || ! $provider->validateCredentials($user, $credentials)) {
             return back()
                 ->withErrors([
                     'email' => 'Email atau password tidak sesuai.',
                 ])
                 ->onlyInput('email');
         }
+
+        if (! $user->hasRole('perawat', 'dokter')) {
+            return back()
+                ->withErrors([
+                    'email' => 'Hanya akun Perawat dan Dokter yang dapat masuk ke sistem.',
+                ])
+                ->onlyInput('email');
+        }
+
+        Auth::login($user, $remember);
 
         $request->session()->regenerate();
         $request->session()->forget('url.intended');

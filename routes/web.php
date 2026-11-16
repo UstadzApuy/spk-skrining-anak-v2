@@ -136,9 +136,7 @@ Route::prefix('spk')->group(function () {
                 '/screening-sessions/{screeningSession}/gpph',
                 [GpphScreeningController::class, 'store']
             )->name('screening-sessions.gpph.store');
-        });
 
-        Route::middleware('role:perawat,orang_tua')->group(function () {
             Route::get(
                 '/screening-sessions/{screeningSession}/sdq',
                 [SdqScreeningController::class, 'create']

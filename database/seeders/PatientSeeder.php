@@ -44,12 +44,7 @@ class PatientSeeder extends Seeder
             Patient::query()->delete();
         });
 
-        // 2. Wali akun pengujian (orangtua@spk.test)
-        $parentGuardian = ParentGuardian::whereHas('user', function ($query) {
-            $query->where('email', 'orangtua@spk.test');
-        })->firstOrFail();
-
-        // 3. Wali umum untuk pasien UPTD lainnya agar dashboard orangtua@spk.test terfokus
+        // 2. Wali umum sebagai entitas data orang tua/wali pasien UPTD (bukan akun login)
         $parentRole = Role::where('name', 'orang_tua')->firstOrFail();
         $generalParentUser = User::firstOrCreate(
             ['email' => 'wali_uptd@spk.test'],
@@ -69,7 +64,13 @@ class PatientSeeder extends Seeder
             ]
         );
 
-        // 4. Muat dan masukkan 176 data anak riil dari file register UPTD BLK-ABK
+        $legacyParent = User::where('email', 'orangtua@spk.test')->first();
+        if ($legacyParent) {
+            $legacyParent->parentGuardian?->delete();
+            $legacyParent->delete();
+        }
+
+        // 3. Muat dan masukkan 176 data anak riil dari file register UPTD BLK-ABK
         $jsonPath = database_path('seeders/uptd_october_data.json');
         if (file_exists($jsonPath)) {
             $uptdRecords = json_decode(file_get_contents($jsonPath), true);
@@ -77,11 +78,6 @@ class PatientSeeder extends Seeder
                 foreach ($uptdRecords as $idx => $rec) {
                     $mrn = sprintf('RM-%03d', $idx + 1);
                     $birthDate = $rec['birth_date'] ?? $today->subMonths($rec['age_months'] ?? 36)->toDateString();
-
-                    // Khusus RM-002 (Chairil Rafqi Nababan, 61 Bulan) dihubungkan ke orangtua@spk.test
-                    // untuk alur pengujian kuesioner Orang Tua mandiri
-                    $isTestParentChild = ($idx === 1);
-                    $guardianId = $isTestParentChild ? $parentGuardian->id : $generalGuardian->id;
 
                     Patient::create([
                         'medical_record_number' => $mrn,
@@ -91,10 +87,10 @@ class PatientSeeder extends Seeder
                         'address' => $rec['address'] ?: 'Balikpapan',
                         'education' => $rec['education'] ?? 'tidak_sekolah',
                         'school_name' => $rec['school_name'] ?? null,
-                        'guardian_relationship' => $isTestParentChild ? 'Ibu' : 'Orang Tua',
+                        'guardian_relationship' => 'Orang Tua',
                         'is_premature' => false,
                         'gestational_age_weeks' => null,
-                        'parent_guardian_id' => $guardianId,
+                        'parent_guardian_id' => $generalGuardian->id,
                         'is_active' => true,
                     ]);
                 }

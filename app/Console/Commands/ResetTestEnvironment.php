@@ -64,13 +64,7 @@ class ResetTestEnvironment extends Command
                     'Perawat (Screening)',
                     'perawat@spk.test',
                     'password',
-                    'Input sesi skrining baru untuk Muhammad Zain Ageng Pangestu (RM-001) atau Adelio Vember (RM-005) evaluasi ulang KPSP 14 hari.',
-                ],
-                [
-                    'Orang Tua (Parent)',
-                    'orangtua@spk.test',
-                    'password',
-                    'Login mandiri, buka kuesioner SDQ & SRQ-20 untuk Chairil Rafqi Nababan (RM-002, 61 Bulan), isi seluruh pertanyaan, dan kirimkan.',
+                    'Input sesi skrining baru untuk Muhammad Zain Ageng Pangestu (RM-001), buka kuesioner SDQ & SRQ-20 RM-002 untuk diisi Orang Tua, atau Adelio Vember (RM-005) evaluasi ulang KPSP 14 hari.',
                 ],
                 [
                     'Dokter (Reviewer)',
@@ -87,7 +81,7 @@ class ResetTestEnvironment extends Command
             ['No. Rekam Medis', 'Nama Anak', 'Usia', 'Jenis Kelamin', 'Kondisi Awal untuk Testing'],
             [
                 ['RM-001', 'Muhammad Zain Ageng Pangestu', '86 Bulan (7.2 Th)', 'Laki-laki', 'Belum Ada Sesi Hari Ini (Siap dibuat Perawat)'],
-                ['RM-002', 'Chairil Rafqi Nababan', '61 Bulan (5.1 Th)', 'Laki-laki', 'Sesi Aktif - SDQ & SRQ Menunggu Orang Tua'],
+                ['RM-002', 'Chairil Rafqi Nababan', '61 Bulan (5.1 Th)', 'Laki-laki', 'Sesi Aktif - SDQ & SRQ dibuka Perawat untuk diisi Orang Tua'],
                 ['RM-003', 'Rychi Yislam Gaza', '25 Bulan (2.1 Th)', 'Laki-laki', 'Sesi Menunggu Tinjauan Dokter (pending review)'],
                 ['RM-004', 'Nausyad Ezzar A.', '81 Bulan (6.8 Th)', 'Laki-laki', 'Selesai Ditinjau Dokter (Histori & Rekapitulasi)'],
                 ['RM-005', 'Adelio Vember', '37 Bulan (3.1 Th)', 'Laki-laki', 'Sesi Evaluasi Ulang KPSP 14 Hari (Tes Re-skrining Dm -> Rujuk RS)'],

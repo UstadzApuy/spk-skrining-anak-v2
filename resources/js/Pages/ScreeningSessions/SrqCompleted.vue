@@ -6,10 +6,6 @@ defineProps({
         type: Object,
         required: true,
     },
-    isParent: {
-        type: Boolean,
-        default: false,
-    },
 });
 </script>
 
@@ -43,7 +39,7 @@ defineProps({
                 Jawaban Anda telah berhasil disimpan dan akan ditinjau oleh tenaga medis UPTD BLK-ABK.
             </p>
 
-            <div v-if="!isParent" class="mt-6 rounded-xl bg-sand/20 dark:bg-white/5 p-4 text-sm leading-6 text-gray-600 dark:text-gray-300 border border-sand/40 dark:border-white/10">
+            <div class="mt-6 rounded-xl bg-sand/20 dark:bg-white/5 p-4 text-sm leading-6 text-gray-600 dark:text-gray-300 border border-sand/40 dark:border-white/10">
                 Silakan serahkan kembali perangkat kepada perawat yang mendampingi Anda.
             </div>
 

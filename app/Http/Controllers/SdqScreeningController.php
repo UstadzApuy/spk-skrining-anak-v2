@@ -157,19 +157,13 @@ class SdqScreeningController extends Controller
             $screeningSession->save();
         });
 
-        if ($request->user()->role?->name === 'orang_tua') {
-            return redirect()
-                ->route('dashboard')
-                ->with('success', 'Kuesioner SDQ berhasil disimpan.');
-        }
-
         return redirect()
             ->route('screening-sessions.show', $screeningSession)
             ->with('success', 'Hasil SDQ berhasil disimpan.');
     }
 
     /**
-     * Restrict access to the nurse who owns the session or the patient's parent guardian.
+     * Restrict access to the nurse who owns the session.
      */
     private function ensureAuthorizedToAccessSdq(
         Request $request,
@@ -177,37 +171,25 @@ class SdqScreeningController extends Controller
     ): void {
         $user = $request->user();
 
-        if ($user->role?->name === 'perawat') {
-            $nurse = $user->nurse;
+        abort_unless(
+            $user->role?->name === 'perawat',
+            403,
+            'Akses tidak diizinkan.'
+        );
 
-            abort_unless(
-                $nurse,
-                403,
-                'Akun perawat belum memiliki profil perawat.'
-            );
+        $nurse = $user->nurse;
 
-            abort_unless(
-                (int) $screeningSession->nurse_id === (int) $nurse->id,
-                403,
-                'Akun perawat tidak memiliki akses ke sesi skrining ini.'
-            );
-        } elseif ($user->role?->name === 'orang_tua') {
-            $parent = $user->parentGuardian;
+        abort_unless(
+            $nurse,
+            403,
+            'Akun perawat belum memiliki profil perawat.'
+        );
 
-            abort_unless(
-                $parent,
-                403,
-                'Akun orang tua belum memiliki profil wali.'
-            );
-
-            abort_unless(
-                (int) $screeningSession->patient->parent_guardian_id === (int) $parent->id,
-                403,
-                'Anda hanya dapat mengisi kuesioner untuk anak Anda sendiri.'
-            );
-        } else {
-            abort(403, 'Akses tidak diizinkan.');
-        }
+        abort_unless(
+            (int) $screeningSession->nurse_id === (int) $nurse->id,
+            403,
+            'Akun perawat tidak memiliki akses ke sesi skrining ini.'
+        );
     }
 
     /**
