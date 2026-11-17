@@ -399,10 +399,17 @@ public function test_perawat_can_submit_25_sdq_answers_and_save_scoring_result()
         ]);
 
     $response
-        ->assertRedirect(route('screening-sessions.show', $session))
-        ->assertSessionHas(
-            'success',
-            'Hasil SDQ berhasil disimpan.'
+        ->assertRedirect(route('screening-sessions.sdq.complete', $session));
+
+    $this->actingAs($nurseUser)
+        ->get(route('screening-sessions.sdq.complete', $session))
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('ScreeningSessions/ParentQuestionnaireCompleted')
+            ->where('completedInstrument.code', 'SDQ')
+            ->where('nextInstrument', null)
+            ->missing('session.sdq_screening')
+            ->missing('score')
         );
 
     $result = SdqScreening::query()
@@ -643,6 +650,52 @@ private function createEligibleSdqSession(): array
             ->assertInertia(fn (Assert $page) => $page
                 ->component('ScreeningSessions/Index')
                 ->where('sessions.data.0.id', $mchatSession->id)
+            );
+    }
+
+    public function test_sdq_completion_prompts_srq_when_srq_is_pending_then_shows_handover(): void
+    {
+        [$nurseUser, $session] = $this->createEligibleSdqSession();
+
+        $session->screeningSessionInstruments()->create([
+            'instrument_code' => 'SRQ',
+            'status' => 'pending',
+        ]);
+
+        $this->actingAs($nurseUser)
+            ->post(route('screening-sessions.sdq.store', $session), [
+                'answers' => array_fill(0, 25, 0),
+            ])
+            ->assertRedirect(route('screening-sessions.sdq.complete', $session));
+
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.sdq.complete', $session))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/ParentQuestionnaireCompleted')
+                ->where('completedInstrument.code', 'SDQ')
+                ->where('nextInstrument.code', 'SRQ')
+                ->where(
+                    'nextInstrument.url',
+                    route('screening-sessions.srq.create', $session, false)
+                )
+                ->missing('score')
+            );
+
+        $this->actingAs($nurseUser)
+            ->post(route('screening-sessions.srq.store', $session), [
+                'answers' => array_fill(0, 20, false),
+            ])
+            ->assertRedirect(route('screening-sessions.srq.complete', $session));
+
+        $this->actingAs($nurseUser)
+            ->get(route('screening-sessions.srq.complete', $session))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('ScreeningSessions/ParentQuestionnaireCompleted')
+                ->where('completedInstrument.code', 'SRQ')
+                ->where('nextInstrument', null)
+                ->missing('score')
             );
     }
 }

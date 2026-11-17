@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesParentQuestionnaireFlow;
 use App\Models\ScreeningSession;
 use App\Models\SrqScreening;
 use App\Services\Scoring\RuleBasedScoringService;
@@ -13,6 +14,8 @@ use Inertia\Response;
 
 class SrqScreeningController extends Controller
 {
+    use HandlesParentQuestionnaireFlow;
+
     /**
      * Display the SRQ-20 questionnaire.
      */
@@ -20,7 +23,7 @@ class SrqScreeningController extends Controller
         Request $request,
         ScreeningSession $screeningSession
     ): Response {
-        $this->ensureAuthorizedToAccessSrq($request, $screeningSession);
+        $this->ensureNurseOwnsSession($request, $screeningSession);
         $this->ensureSrqIsAvailable($screeningSession);
 
         $screeningSession->load([
@@ -57,7 +60,7 @@ class SrqScreeningController extends Controller
         ScreeningSession $screeningSession,
         RuleBasedScoringService $scoringService
     ): RedirectResponse {
-        $this->ensureAuthorizedToAccessSrq($request, $screeningSession);
+        $this->ensureNurseOwnsSession($request, $screeningSession);
         $this->ensureSrqIsAvailable($screeningSession);
 
         abort_unless(
@@ -153,13 +156,13 @@ class SrqScreeningController extends Controller
     }
 
     /**
-     * Display a completion confirmation without showing the score.
+     * Display completion confirmation or prompt for the next parent questionnaire.
      */
     public function complete(
         Request $request,
         ScreeningSession $screeningSession
     ): Response {
-        $this->ensureAuthorizedToAccessSrq($request, $screeningSession);
+        $this->ensureNurseOwnsSession($request, $screeningSession);
         $this->ensureSrqIsAvailable($screeningSession);
 
         abort_unless(
@@ -168,46 +171,7 @@ class SrqScreeningController extends Controller
             'Hasil SRQ-20 belum tersedia.'
         );
 
-        $screeningSession->load([
-            'patient:id,name,medical_record_number',
-        ]);
-
-        return Inertia::render('ScreeningSessions/SrqCompleted', [
-            'session' => [
-                'id' => $screeningSession->id,
-                'patient' => $screeningSession->patient,
-            ],
-        ]);
-    }
-
-    /**
-     * Restrict access to the nurse who owns the session.
-     */
-    private function ensureAuthorizedToAccessSrq(
-        Request $request,
-        ScreeningSession $screeningSession
-    ): void {
-        $user = $request->user();
-
-        abort_unless(
-            $user->role?->name === 'perawat',
-            403,
-            'Akses tidak diizinkan.'
-        );
-
-        $nurse = $user->nurse;
-
-        abort_unless(
-            $nurse,
-            403,
-            'Akun perawat belum memiliki profil perawat.'
-        );
-
-        abort_unless(
-            (int) $screeningSession->nurse_id === (int) $nurse->id,
-            403,
-            'Akun perawat tidak memiliki akses ke sesi skrining ini.'
-        );
+        return $this->renderParentCompletion($screeningSession, 'SRQ');
     }
 
     /**

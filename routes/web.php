@@ -148,6 +148,11 @@ Route::prefix('spk')->group(function () {
             )->name('screening-sessions.sdq.store');
 
             Route::get(
+                '/screening-sessions/{screeningSession}/sdq/complete',
+                [SdqScreeningController::class, 'complete']
+            )->name('screening-sessions.sdq.complete');
+
+            Route::get(
                 '/screening-sessions/{screeningSession}/srq',
                 [SrqScreeningController::class, 'create']
             )->name('screening-sessions.srq.create');

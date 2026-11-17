@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Controllers\Concerns\HandlesParentQuestionnaireFlow;
 use App\Models\ScreeningSession;
 use App\Models\SdqScreening;
 use App\Services\Scoring\RuleBasedScoringService;
@@ -13,6 +14,8 @@ use Inertia\Response;
 
 class SdqScreeningController extends Controller
 {
+    use HandlesParentQuestionnaireFlow;
+
     /**
      * Display the SDQ questionnaire for an eligible screening session.
      */
@@ -20,7 +23,7 @@ class SdqScreeningController extends Controller
         Request $request,
         ScreeningSession $screeningSession
     ): Response {
-        $this->ensureAuthorizedToAccessSdq($request, $screeningSession);
+        $this->ensureNurseOwnsSession($request, $screeningSession);
         $this->ensureSdqIsAvailable($screeningSession);
 
         $screeningSession->load([
@@ -57,7 +60,7 @@ class SdqScreeningController extends Controller
         ScreeningSession $screeningSession,
         RuleBasedScoringService $scoringService
     ): RedirectResponse {
-        $this->ensureAuthorizedToAccessSdq($request, $screeningSession);
+        $this->ensureNurseOwnsSession($request, $screeningSession);
         $this->ensureSdqIsAvailable($screeningSession);
 
         abort_unless(
@@ -157,39 +160,29 @@ class SdqScreeningController extends Controller
             $screeningSession->save();
         });
 
-        return redirect()
-            ->route('screening-sessions.show', $screeningSession)
-            ->with('success', 'Hasil SDQ berhasil disimpan.');
+        return redirect()->route(
+            'screening-sessions.sdq.complete',
+            $screeningSession
+        );
     }
 
     /**
-     * Restrict access to the nurse who owns the session.
+     * Display completion confirmation or prompt for the next parent questionnaire.
      */
-    private function ensureAuthorizedToAccessSdq(
+    public function complete(
         Request $request,
         ScreeningSession $screeningSession
-    ): void {
-        $user = $request->user();
+    ): Response {
+        $this->ensureNurseOwnsSession($request, $screeningSession);
+        $this->ensureSdqIsAvailable($screeningSession);
 
         abort_unless(
-            $user->role?->name === 'perawat',
-            403,
-            'Akses tidak diizinkan.'
+            $screeningSession->sdqScreening()->exists(),
+            404,
+            'Hasil SDQ belum tersedia.'
         );
 
-        $nurse = $user->nurse;
-
-        abort_unless(
-            $nurse,
-            403,
-            'Akun perawat belum memiliki profil perawat.'
-        );
-
-        abort_unless(
-            (int) $screeningSession->nurse_id === (int) $nurse->id,
-            403,
-            'Akun perawat tidak memiliki akses ke sesi skrining ini.'
-        );
+        return $this->renderParentCompletion($screeningSession, 'SDQ');
     }
 
     /**
